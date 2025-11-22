@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-
+import { NineNineNine } from './social/nineninenine.provider';
 import { Injectable } from '@nestjs/common';
 import { XProvider } from '@gitroom/nestjs-libraries/integrations/social/x.provider';
 import { SocialProvider } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
@@ -30,32 +30,33 @@ import { WordpressProvider } from '@gitroom/nestjs-libraries/integrations/social
 import { ListmonkProvider } from '@gitroom/nestjs-libraries/integrations/social/listmonk.provider';
 
 export const socialIntegrationList: SocialProvider[] = [
-  new XProvider(),
-  new LinkedinProvider(),
-  new LinkedinPageProvider(),
-  new RedditProvider(),
+  // new XProvider(),
+  // new LinkedinProvider(),
+  // new LinkedinPageProvider(),
+  // new RedditProvider(),
   new InstagramProvider(),
   new InstagramStandaloneProvider(),
   new FacebookProvider(),
-  new ThreadsProvider(),
-  new YoutubeProvider(),
+  // new ThreadsProvider(),
+  // new YoutubeProvider(),
   new TiktokProvider(),
-  new PinterestProvider(),
-  new DribbbleProvider(),
-  new DiscordProvider(),
-  new SlackProvider(),
-  new MastodonProvider(),
-  new BlueskyProvider(),
-  new LemmyProvider(),
-  new FarcasterProvider(),
+  // new PinterestProvider(),
+  // new DribbbleProvider(),
+  // new DiscordProvider(),
+  // new SlackProvider(),
+  // new MastodonProvider(),
+  // new BlueskyProvider(),
+  // new LemmyProvider(),
+  // new FarcasterProvider(),
   new TelegramProvider(),
-  new NostrProvider(),
-  new VkProvider(),
-  new MediumProvider(),
-  new DevToProvider(),
-  new HashnodeProvider(),
-  new WordpressProvider(),
-  new ListmonkProvider(),
+  // new NostrProvider(),
+  // new VkProvider(),
+  // new MediumProvider(),
+  // new DevToProvider(),
+  // new HashnodeProvider(),
+  // new WordpressProvider(),
+  // new ListmonkProvider(),
+  new NineNineNine()
   // new MastodonCustomProvider(),
 ];
 
