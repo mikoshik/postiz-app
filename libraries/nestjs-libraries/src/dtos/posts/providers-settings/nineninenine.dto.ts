@@ -1,6 +1,18 @@
-import { IsIn } from 'class-validator';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 
 export class NinenineDto {
-  @IsIn(['ninenine'])
-  __type: 'ninenine';
+  @IsIn(['nineninenine'])
+  __type: 'nineninenine';
+
+  @IsString()
+  @IsOptional()
+  apiKey?: string;
+
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsOptional()
+  price?: string;
 }

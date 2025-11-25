@@ -5,15 +5,31 @@ import {
   PostComment,
   withProvider,
 } from '@gitroom/frontend/components/new-launch/providers/high.order.provider';
+import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
+import { Input } from '@gitroom/react/form/input';
 
-// КОМПОНЕНТ НАСТРОЕК (Вкладка настроек канала)
+// КОМПОНЕНТ НАСТРОЕК (Вкладка настроек канала при создании поста)
 const NineNineNineSettings: FC = () => {
-  // Здесь пока пусто, так как у нас нет сложных настроек
+  const { register } = useSettings();
+
   return (
     <div className="flex flex-col gap-4">
-       <div className="text-sm text-gray-400">
-         Для этого провайдера нет особых настроек. Просто публикуй!
+       <div className="text-white">
+         <h3 className="text-lg font-bold">Настройки объявления 999.md</h3>
        </div>
+
+       <Input
+         label="Заголовок (Title)"
+         placeholder="Заголовок объявления (если пусто, берется из текста)"
+         {...register('title')}
+       />
+       
+       <Input
+         label="Цена (EUR)"
+         placeholder="Цена в евро"
+         type="number"
+         {...register('price')}
+       />
     </div>
   );
 };
@@ -25,6 +41,6 @@ export default withProvider({
   SettingsComponent: NineNineNineSettings,
   CustomPreviewComponent: undefined,
   dto: undefined,
-  checkValidity: undefined,
-  maximumCharacters: 1000,
+  checkValidity: async () => true,
+  maximumCharacters: 2000,
 });

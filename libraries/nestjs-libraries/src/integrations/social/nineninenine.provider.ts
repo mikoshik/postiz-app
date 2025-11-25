@@ -9,7 +9,7 @@ import { Integration } from '@prisma/client';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import dayjs from 'dayjs';
 
-export class NineNineNine extends SocialAbstract implements SocialProvider {
+export class NineNineNine implements SocialProvider {
   identifier = 'nineninenine';
   name = '999';
   isBetweenSteps = false;
@@ -20,13 +20,15 @@ export class NineNineNine extends SocialAbstract implements SocialProvider {
     return 2000;
   }
 
-  // Проверка API токена
-  private getApiToken(): string {
-    const token = process.env.NINENINENINE_API_TOKEN;
-    if (!token) {
-      throw new Error('NINENINENINE_API_TOKEN must be set');
-    }
-    return token;
+  async customFields() {
+    return [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        validation: '/^.+$/',
+        type: 'text' as const,
+      },
+    ];
   }
 
   async generateAuthUrl() {
@@ -44,20 +46,18 @@ export class NineNineNine extends SocialAbstract implements SocialProvider {
     refresh?: string;
   }): Promise<AuthTokenDetails | string> {
     try {
-      // Проверяем токен при аутентификации
-      this.getApiToken();
-
-      // params.code содержит ID канала/пользователя (в данном случае просто заглушка или ID пользователя)
-      const channelId = params.code;
+      const { apiKey } = JSON.parse(
+        Buffer.from(params.code, 'base64').toString()
+      );
 
       return {
-        accessToken: channelId,
+        accessToken: apiKey,
         refreshToken: '',
         expiresIn: dayjs().add(100, 'year').unix() - dayjs().unix(),
-        id: channelId,
+        id: makeId(10),
         name: '999 Account',
         picture: 'https://999.md/public/images/logo.svg', // Логотип 999
-        username: channelId,
+        username: '999 User',
       } as AuthTokenDetails;
     } catch (err) {
       return (
@@ -120,8 +120,9 @@ export class NineNineNine extends SocialAbstract implements SocialProvider {
     integration: Integration
   ): Promise<PostResponse[]> {
     const content = postDetails[0].message;
-    const apiToken = this.getApiToken();
+    const apiToken = accessToken;
     const authHeader = `Basic ${Buffer.from(`${apiToken}:`).toString('base64')}`;
+    const settings = postDetails[0].settings || {};
 
     try {
       // 1. Загружаем все изображения
@@ -143,7 +144,7 @@ export class NineNineNine extends SocialAbstract implements SocialProvider {
       // 2. Подготавливаем данные объявления
       // Пытаемся извлечь заголовок из первой строки
       const lines = content.split('\n');
-      let title = lines[0].substring(0, 50); // Максимум 50 символов
+      let title = settings.title || lines[0].substring(0, 50); // Максимум 50 символов
       if (title.length === 0) title = 'New Advert';
 
       // Описание - весь текст
@@ -181,7 +182,7 @@ export class NineNineNine extends SocialAbstract implements SocialProvider {
         title: title,
         description: description,
         price: {
-          value: 0, // Цена по умолчанию, пользователь изменит на сайте
+          value: settings.price ? Number(settings.price) : 0, // Цена по умолчанию, пользователь изменит на сайте
           unit: 'eur',
         },
         offer_type: offerType,

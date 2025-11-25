@@ -37,7 +37,7 @@ export type AllProvidersSettings =
   | ProviderExtension<'hashnode', HashnodeSettingsDto>
   | ProviderExtension<'wordpress', WordpressDto>
   | ProviderExtension<'listmonk', ListmonkDto>
-  | ProviderExtension<'ninenine', NinenineDto>
+  | ProviderExtension<'nineninenine', NinenineDto>
   | ProviderExtension<'facebook', None>
   | ProviderExtension<'threads', None>
   | ProviderExtension<'mastodon', None>
@@ -69,7 +69,7 @@ export const allProviders = (setEmpty?: any) => {
     { value: WordpressDto, name: 'wordpress' },
     { value: HashnodeSettingsDto, name: 'hashnode' },
     { value: ListmonkDto, name: 'listmonk' },
-    { value: NinenineDto, name: 'ninenine' },
+    { value: NinenineDto, name: 'nineninenine' },
     { value: setEmpty, name: 'facebook' },
     { value: setEmpty, name: 'threads' },
     { value: setEmpty, name: 'mastodon' },
