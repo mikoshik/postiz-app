@@ -228,10 +228,10 @@ export const CustomVariables: FC<{
     return object({
       ...variables.reduce((aIcc, item) => {
         const splitter = item.validation.split('/');
-        const regex = new RegExp(
-          splitter.slice(1, -1).join('/'),
-          splitter.pop()
-        );
+        const regex =
+          splitter.length > 1
+            ? new RegExp(splitter.slice(1, -1).join('/'), splitter.pop())
+            : new RegExp(item.validation);
         return {
           ...aIcc,
           [item.key]: string()

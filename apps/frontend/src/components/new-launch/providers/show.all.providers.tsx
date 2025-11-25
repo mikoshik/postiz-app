@@ -1,5 +1,5 @@
 'use client';
-
+import NineNineNine from '@gitroom/frontend/components/new-launch/providers/nineninenine/nineninenine.provider';
 import DevtoProvider from '@gitroom/frontend/components/new-launch/providers/devto/devto.provider';
 import XProvider from '@gitroom/frontend/components/new-launch/providers/x/x.provider';
 import LinkedinProvider from '@gitroom/frontend/components/new-launch/providers/linkedin/linkedin.provider';
@@ -137,6 +137,10 @@ export const Providers = [
   {
     identifier: 'listmonk',
     component: ListmonkProvider,
+  },
+  {
+    identifier: 'nineninenine',
+    component: NineNineNine,
   },
 ];
 export const ShowAllProviders = forwardRef((props, ref) => {
