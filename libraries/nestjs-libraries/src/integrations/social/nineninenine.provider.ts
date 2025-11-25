@@ -23,8 +23,14 @@ export class NineNineNine implements SocialProvider {
   async customFields() {
     return [
       {
-        key: 'apiKey',
-        label: 'API Key',
+        key: 'phoneNumber',
+        label: 'Phone Number (Номер телефона)',
+        validation: '/^.+$/',
+        type: 'text' as const,
+      },
+      {
+        key: 'location',
+        label: 'Location (Местоположение)',
         validation: '/^.+$/',
         type: 'text' as const,
       },
@@ -46,18 +52,22 @@ export class NineNineNine implements SocialProvider {
     refresh?: string;
   }): Promise<AuthTokenDetails | string> {
     try {
-      const { apiKey } = JSON.parse(
+      const { phoneNumber, location } = JSON.parse(
         Buffer.from(params.code, 'base64').toString()
       );
 
+      // Сохраняем данные пользователя в accessToken (так как API ключ теперь в ENV)
+      const tokenData = JSON.stringify({ phoneNumber, location });
+      const accessToken = Buffer.from(tokenData).toString('base64');
+
       return {
-        accessToken: apiKey,
+        accessToken: accessToken,
         refreshToken: '',
         expiresIn: dayjs().add(100, 'year').unix() - dayjs().unix(),
         id: makeId(10),
-        name: '999 Account',
-        picture: 'https://999.md/public/images/logo.svg', // Логотип 999
-        username: '999 User',
+        name: `999 User (${phoneNumber})`,
+        picture: 'https://999.md/public/images/logo.svg',
+        username: phoneNumber,
       } as AuthTokenDetails;
     } catch (err) {
       return (
@@ -113,6 +123,26 @@ export class NineNineNine implements SocialProvider {
     }
   }
 
+  // Заглушка для ИИ парсинга
+  private async parseWithAi(text: string): Promise<any> {
+    // TODO: Здесь должен быть вызов к OpenAI или другому LLM
+    // const completion = await openai.chat.completions.create({ ... });
+    
+    // Примерные данные которые нужны 999 про машины (JSON заглушка)
+    return {
+      category_id: '658', // Транспорт
+      subcategory_id: '659', // Легковые автомобили
+      offer_type: '776', // Продам
+      features: [
+        { id: '14', value: 'BMW' }, // Марка (пример)
+        { id: '15', value: '5 Series' }, // Модель (пример)
+        { id: '12', value: '2018' }, // Год выпуска
+        { id: '16', value: 'Diesel' }, // Тип топлива
+        { id: '18', value: 'Automatic' }, // КПП
+      ],
+    };
+  }
+
   async post(
     id: string,
     accessToken: string,
@@ -120,8 +150,22 @@ export class NineNineNine implements SocialProvider {
     integration: Integration
   ): Promise<PostResponse[]> {
     const content = postDetails[0].message;
-    const apiToken = accessToken;
-    const authHeader = `Basic ${Buffer.from(`${apiToken}:`).toString('base64')}`;
+    
+    // Получаем API ключ из ENV
+    const apiKey = process.env.NINENINENINE_API_KEY;
+    if (!apiKey) {
+      throw new Error('NINENINENINE_API_KEY is not set in environment variables');
+    }
+
+    // Декодируем данные пользователя из accessToken
+    let userData: { phoneNumber: string; location: string };
+    try {
+      userData = JSON.parse(Buffer.from(accessToken, 'base64').toString());
+    } catch (e) {
+      throw new Error('Invalid access token format');
+    }
+
+    const authHeader = `Basic ${Buffer.from(`${apiKey}:`).toString('base64')}`;
     const settings = postDetails[0].settings || {};
 
     try {
@@ -133,7 +177,7 @@ export class NineNineNine implements SocialProvider {
         // Пропускаем видео, так как 999 API (в этом примере) работает с картинками
         if (media.path.match(/\.(jpg|jpeg|png|webp)$/i)) {
             try {
-                const imageId = await this.uploadImage(media.path, apiToken);
+                const imageId = await this.uploadImage(media.path, apiKey);
                 uploadedImageIds.push(imageId);
             } catch (e) {
                 console.warn(`Skipping image ${media.path} due to upload error.`);
@@ -141,7 +185,10 @@ export class NineNineNine implements SocialProvider {
         }
       }
 
-      // 2. Подготавливаем данные объявления
+      // 2. Парсим текст с помощью ИИ (получаем характеристики авто)
+      const aiData = await this.parseWithAi(content);
+
+      // 3. Подготавливаем данные объявления
       // Пытаемся извлечь заголовок из первой строки
       const lines = content.split('\n');
       let title = settings.title || lines[0].substring(0, 50); // Максимум 50 символов
@@ -150,34 +197,7 @@ export class NineNineNine implements SocialProvider {
       // Описание - весь текст
       const description = content;
 
-      // Хардкод параметров для авто (как в запросе)
-      // TODO: В будущем можно вынести это в настройки интеграции или парсить из текста
-      const categoryId = '658'; // Транспорт
-      const subcategoryId = '659'; // Легковые авто
-      const offerType = '776'; // Продам
-      const regionId = '12'; // Кишинев (default)
-
-      // Формируем features
-      const features: any[] = [];
-      
-      // Добавляем изображения в features, если они есть
-      // ВАЖНО: ID фичи для картинок зависит от категории. 
-      // Для авто это часто специфичный ID. Если он неизвестен, картинки могут не прикрепиться.
-      // Здесь я использую заглушку или стандартный метод, если он есть.
-      // В документации 999 часто картинки передаются отдельно или через специфичный feature_id.
-      // Предположим, что мы просто загрузили их, но API требует привязки.
-      // Если API поддерживает поле `images` в корне (некоторые версии), можно попробовать так.
-      // Но по инструкции пользователя: "Images are also passed as a feature!"
-      
-      // ПРИМЕЧАНИЕ: Без реального feature_id для картинок в категории 659 этот код может требовать доработки.
-      // Обычно это ID типа "818" или подобное. Я оставлю место для этого.
-      if (uploadedImageIds.length > 0) {
-          // features.push({
-          //    id: "UNKNOWN_IMAGE_FEATURE_ID", 
-          //    value: uploadedImageIds
-          // });
-      }
-
+      // Собираем payload
       const payload = {
         title: title,
         description: description,
@@ -185,18 +205,17 @@ export class NineNineNine implements SocialProvider {
           value: settings.price ? Number(settings.price) : 0, // Цена по умолчанию, пользователь изменит на сайте
           unit: 'eur',
         },
-        offer_type: offerType,
-        category_id: categoryId,
-        subcategory_id: subcategoryId,
-        region_id: regionId,
-        features: features,
-        // Некоторые эндпоинты принимают images напрямую
+        ...aiData, // Вставляем данные от ИИ (category, features и т.д.)
+        region_id: '12', // Можно использовать userData.location для поиска ID региона
+        contacts: {
+            phones: [userData.phoneNumber]
+        },
         images: uploadedImageIds 
       };
 
-      console.log('Posting to 999.md:', JSON.stringify(payload, null, 2));
+      console.log('Posting to 999.md with AI data:', JSON.stringify(payload, null, 2));
 
-      // 3. Создаем объявление
+      // 4. Создаем объявление
       const response = await fetch('https://partners-api.999.md/adverts', {
         method: 'POST',
         headers: {

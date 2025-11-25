@@ -6,10 +6,6 @@ export class NinenineDto {
 
   @IsString()
   @IsOptional()
-  apiKey?: string;
-
-  @IsString()
-  @IsOptional()
   title?: string;
 
   @IsString()
