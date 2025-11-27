@@ -9,7 +9,9 @@ import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.v
 import { useIntegration } from '@gitroom/frontend/components/launches/helpers/use.integration';
 import { Input } from '@gitroom/react/form/input';
 
-// --- КОНСТАНТЫ И СПИСКИ ---
+// ==========================================
+// 1. СПИСКИ ДАННЫХ (CONSTANTS)
+// ==========================================
 
 const REGIONS = [
     { id: '12', name: 'Кишинев' },
@@ -83,8 +85,11 @@ const STEERING_TYPES = [
     { id: 'left', name: 'Слева' }, { id: 'right', name: 'Справа' },
 ];
 
-// Хелпер для поиска имени по ID
-const getName = (list: any[], id: string) => list.find(item => item.id === id)?.name;
+// Хелпер: найти имя по ID (безопасный поиск)
+const getName = (list: any[], id: string) => {
+    if (!id) return undefined;
+    return list.find(item => item.id === id || item.id === String(id))?.name;
+};
 
 
 // ==========================================
@@ -110,26 +115,17 @@ const NineNineNineSettings: FC = () => {
            </div>
            
            <div className="grid grid-cols-1 gap-3">
-               {/* Раздел (Readonly) */}
                <div>
                    <label className="block text-xs font-medium text-gray-500 mb-1">Раздел</label>
-                   <input 
-                     value="Транспорт (658)" 
-                     disabled 
-                     className="w-full bg-gray-800 border border-gray-700 rounded h-10 px-3 text-sm text-gray-400 cursor-not-allowed"
-                   />
+                   <input value="Транспорт (658)" disabled className="w-full bg-gray-800 border border-gray-700 rounded h-10 px-3 text-sm text-gray-400 cursor-not-allowed" />
                    <input type="hidden" {...register('categoryId')} />
                </div>
-
-               {/* Подкатегория (Dropdown) */}
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Подкатегория</label>
                    <select {...register('subcategoryId')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
                        {SUB_CATEGORIES.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                    </select>
                </div>
-
-               {/* Тип предложения (Dropdown) */}
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Тип предложения <span className="text-red-500">*</span></label>
                    <select {...register('offerType')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
@@ -145,8 +141,9 @@ const NineNineNineSettings: FC = () => {
                2. Автомобиль
            </div>
 
+           <Input label="Заголовок" placeholder="BMW X5, 2018..." {...register('title')} />
+
            <div className="grid grid-cols-2 gap-3">
-               {/* Марка */}
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Марка <span className="text-red-500">*</span></label>
                    <select {...register('car_brand')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
@@ -154,8 +151,6 @@ const NineNineNineSettings: FC = () => {
                        {MOCK_MAKES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                    </select>
                </div>
-
-               {/* Модель */}
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Модель <span className="text-red-500">*</span></label>
                    <select {...register('car_model')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
@@ -165,18 +160,19 @@ const NineNineNineSettings: FC = () => {
                </div>
            </div>
 
-           {/* Регистрация и Состояние */}
            <div className="grid grid-cols-2 gap-3">
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Регистрация</label>
                    <select {...register('car_registration')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       {REGISTRATION_TYPES.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                       <option value="">Не выбрано</option>
+                       {REGISTRATION_TYPES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                    </select>
                </div>
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Состояние</label>
                    <select {...register('car_condition')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       {CONDITION_TYPES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                       <option value="">Не выбрано</option>
+                       {CONDITION_TYPES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                    </select>
                </div>
            </div>
@@ -199,13 +195,15 @@ const NineNineNineSettings: FC = () => {
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Тип кузова</label>
                    <select {...register('car_body')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       {BODY_TYPES.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                       <option value="">Не выбрано</option>
+                       {BODY_TYPES.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                    </select>
                </div>
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Руль</label>
                    <select {...register('car_steering')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       {STEERING_TYPES.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                       <option value="">Не выбрано</option>
+                       {STEERING_TYPES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                    </select>
                </div>
            </div>
@@ -214,13 +212,15 @@ const NineNineNineSettings: FC = () => {
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Тип топлива *</label>
                    <select {...register('car_fuel')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       {FUEL_TYPES.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
+                       <option value="">Не выбрано</option>
+                       {FUEL_TYPES.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                    </select>
                </div>
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">КПП *</label>
                    <select {...register('car_gearbox')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       {GEARBOX_TYPES.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
+                       <option value="">Не выбрано</option>
+                       {GEARBOX_TYPES.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                    </select>
                </div>
            </div>
@@ -234,13 +234,15 @@ const NineNineNineSettings: FC = () => {
                <div>
                     <label className="block text-xs font-medium text-gray-300 mb-1">Привод</label>
                     <select {...register('car_drive')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                        {DRIVETRAIN_TYPES.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                        <option value="">Не выбрано</option>
+                        {DRIVETRAIN_TYPES.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                </div>
                <div>
                     <label className="block text-xs font-medium text-gray-300 mb-1">Цвет</label>
                     <select {...register('car_color')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                        {COLOR_TYPES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        <option value="">Не выбрано</option>
+                        {COLOR_TYPES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                </div>
            </div>
@@ -265,9 +267,6 @@ const NineNineNineSettings: FC = () => {
                 </select>
            </div>
 
-           {/* Заголовок */}
-           <Input label="Заголовок" placeholder="BMW X5, 2018..." {...register('title')} />
-
            {/* Цена */}
            <div className="flex gap-2">
              <div className="flex-1">
@@ -285,7 +284,7 @@ const NineNineNineSettings: FC = () => {
            
            <div className="flex items-center gap-2">
                <input type="checkbox" {...register('negotiable')} id="negotiable" className="w-4 h-4 rounded bg-input border-gray-700" />
-               <label htmlFor="negotiable" className="text-sm text-gray-300 select-none">Разрешить торг</label>
+               <label htmlFor="negotiable" className="text-sm text-gray-300 select-none cursor-pointer">Разрешить торг</label>
            </div>
        </div>
 
@@ -306,6 +305,7 @@ const NineNineNinePreview: FC = () => {
   const price = settings.watch('price') || 'Договорная';
   const currency = settings.watch('currency') || 'EUR';
   const regionName = getName(REGIONS, settings.watch('regionId')) || 'Молдова';
+  const negotiable = settings.watch('negotiable');
   
   // Авто-сборка заголовка
   const brandName = getName(MOCK_MAKES, settings.watch('car_brand')) || '';
@@ -323,25 +323,29 @@ const NineNineNinePreview: FC = () => {
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const activeImage = images[activeImgIndex]?.path || firstImage;
 
-  // Собираем характеристики для таблицы (ВСЕ ПОЛЯ)
+  // --- СБОРКА ТАБЛИЦЫ ХАРАКТЕРИСТИК (ВСЕ ПОЛЯ) ---
   const specs = [
       { label: 'Марка', value: brandName },
       { label: 'Модель', value: modelName },
       { label: 'Год выпуска', value: year },
-      { label: 'Тип топлива', value: settings.watch('car_fuel') },
-      { label: 'КПП', value: settings.watch('car_gearbox') },
-      { label: 'Привод', value: settings.watch('car_drive') },
-      { label: 'Тип кузова', value: settings.watch('car_body') },
-      { label: 'Руль', value: settings.watch('car_steering') },
+      { label: 'Регистрация', value: getName(REGISTRATION_TYPES, settings.watch('car_registration')) },
+      { label: 'Состояние', value: getName(CONDITION_TYPES, settings.watch('car_condition')) },
+      { label: 'VIN', value: settings.watch('car_vin') },
+      
       { label: 'Пробег', value: settings.watch('car_mileage') ? `${settings.watch('car_mileage')} км` : '' },
       { label: 'Объем двигателя', value: settings.watch('car_engine_vol') ? `${settings.watch('car_engine_vol')} см³` : '' },
       { label: 'Мощность', value: settings.watch('car_power') ? `${settings.watch('car_power')} л.с.` : '' },
-      { label: 'Регистрация', value: settings.watch('car_registration') },
-      { label: 'Состояние', value: settings.watch('car_condition') },
-      { label: 'Цвет', value: settings.watch('car_color') },
+      
+      { label: 'Тип кузова', value: getName(BODY_TYPES, settings.watch('car_body')) },
+      { label: 'Тип топлива', value: getName(FUEL_TYPES, settings.watch('car_fuel')) },
+      { label: 'КПП', value: getName(GEARBOX_TYPES, settings.watch('car_gearbox')) },
+      { label: 'Привод', value: getName(DRIVETRAIN_TYPES, settings.watch('car_drive')) },
+      { label: 'Руль', value: getName(STEERING_TYPES, settings.watch('car_steering')) },
+      { label: 'Цвет', value: getName(COLOR_TYPES, settings.watch('car_color')) },
+      
       { label: 'Кол-во дверей', value: settings.watch('car_doors') },
       { label: 'Кол-во мест', value: settings.watch('car_seats') },
-  ].filter(s => s.value); 
+  ].filter(s => s.value); // Удаляем пустые
 
   return (
     <div className="w-full bg-white rounded-md overflow-hidden border border-gray-300 font-sans text-left shadow-lg select-none text-black">
@@ -352,11 +356,9 @@ const NineNineNinePreview: FC = () => {
               {displayTitle}
           </h1>
           <div className="flex justify-between items-end">
-              <div className="text-2xl font-bold text-black">
+              <div className="text-2xl font-bold text-black flex items-baseline gap-2">
                   {price} <span className="text-sm font-normal text-gray-500 uppercase">{currency}</span>
-              </div>
-              <div className="text-xs text-gray-400 bg-white px-2 py-1 rounded border">
-                  📅 Сегодня, 14:30
+                  {negotiable && <span className="text-xs text-green-600 font-normal border border-green-200 px-1 rounded">Торг</span>}
               </div>
           </div>
       </div>
@@ -394,7 +396,7 @@ const NineNineNinePreview: FC = () => {
           </div>
       )}
 
-      {/* Таблица характеристик (Теперь полная!) */}
+      {/* Таблица характеристик (ВСЕ ПОЛЯ) */}
       {specs.length > 0 && (
           <div className="p-4 bg-white">
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -422,9 +424,9 @@ const NineNineNinePreview: FC = () => {
               <div className="text-xs text-gray-500">Регион</div>
               <div className="text-sm font-bold text-[#0079c2]">{regionName}</div>
           </div>
-          <button className="bg-[#81b6ea] text-white px-4 py-2 rounded text-sm font-bold shadow-sm">
-              📞 Показать телефон
-          </button>
+          <div className="text-[#0079c2] font-bold text-lg flex items-center gap-2">
+              <span>📞 +373 79 000 000</span>
+          </div>
       </div>
 
     </div>
