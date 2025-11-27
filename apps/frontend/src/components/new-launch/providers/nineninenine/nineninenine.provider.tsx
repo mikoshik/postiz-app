@@ -9,13 +9,22 @@ import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.v
 import { useIntegration } from '@gitroom/frontend/components/launches/helpers/use.integration';
 import { Input } from '@gitroom/react/form/input';
 
-// --- ЗАГЛУШКИ ДАННЫХ (MOCK DATA) ---
-// В будущем эти массивы мы будем заменять на данные, пришедшие с API 999
+// --- КОНСТАНТЫ И СПИСКИ ---
+
+const REGIONS = [
+    { id: '12', name: 'Кишинев' },
+    { id: '16', name: 'Бельцы' },
+    { id: '19', name: 'Комрат' },
+    { id: '18', name: 'Кагул' },
+    { id: '29', name: 'Оргеев' },
+    { id: '35', name: 'Тирасполь' },
+    { id: '14', name: 'Другой / Вся Молдова' },
+];
+
 const SUB_CATEGORIES = [
     { id: '659', name: 'Легковые автомобили' },
     { id: '660', name: 'Автобусы и микроавтобусы' },
     { id: '661', name: 'Мотоциклы и мототехника' },
-    { id: '658', name: 'Грузовые автомобили' },
 ];
 
 const OFFER_TYPES = [
@@ -25,21 +34,14 @@ const OFFER_TYPES = [
     { id: '778', name: 'Меняю' },
 ];
 
-// Пример того, что вернет API на запрос "Get Makes" (Марки)
 const MOCK_MAKES = [
-    { id: '124', name: 'BMW' },
-    { id: '125', name: 'Mercedes-Benz' },
-    { id: '126', name: 'Toyota' },
-    { id: '127', name: 'Ford' },
-    { id: '128', name: 'Volkswagen' },
-    { id: '129', name: 'Honda' },
+    { id: '124', name: 'BMW' }, { id: '125', name: 'Mercedes-Benz' }, { id: '126', name: 'Toyota' },
+    { id: '127', name: 'Ford' }, { id: '128', name: 'Volkswagen' }, { id: '129', name: 'Honda' },
 ];
 
-// Пример моделей (зависит от марки)
 const MOCK_MODELS = [
-    { id: '555', name: 'X5' },
-    { id: '556', name: '5 Series' },
-    { id: '557', name: '3 Series' },
+    { id: '555', name: 'X5' }, { id: '556', name: '5 Series' }, { id: '557', name: '3 Series' },
+    { id: '558', name: 'E-Class' }, { id: '559', name: 'Passat' }, { id: '560', name: 'Camry' }
 ];
 
 const REGISTRATION_TYPES = [
@@ -49,50 +51,53 @@ const REGISTRATION_TYPES = [
     { id: '4', name: 'Нет' },
 ];
 
+const CONDITION_TYPES = [
+    { id: '1', name: 'Не битый' },
+    { id: '2', name: 'Битый / Аварийный' },
+    { id: '3', name: 'На запчасти' },
+];
+
 const FUEL_TYPES = [
-    { id: '12', name: 'Бензин' },
-    { id: '13', name: 'Дизель' },
-    { id: '14', name: 'Гибрид' },
-    { id: '15', name: 'Электро' },
-    { id: '16', name: 'Газ / Бензин' },
+    { id: '12', name: 'Бензин' }, { id: '13', name: 'Дизель' }, { id: '14', name: 'Гибрид' },
+    { id: '15', name: 'Электро' }, { id: '16', name: 'Газ / Бензин' },
 ];
 
 const GEARBOX_TYPES = [
-    { id: '20', name: 'Автомат' },
-    { id: '21', name: 'Механика' },
-    { id: '22', name: 'Робот' },
-    { id: '23', name: 'Вариатор' },
+    { id: '20', name: 'Автомат' }, { id: '21', name: 'Механика' }, { id: '22', name: 'Робот' },
 ];
 
 const BODY_TYPES = [
-    { id: '30', name: 'Седан' },
-    { id: '31', name: 'Универсал' },
-    { id: '32', name: 'Хэтчбек' },
-    { id: '33', name: 'Кроссовер' },
-    { id: '34', name: 'Минивэн' },
+    { id: '30', name: 'Седан' }, { id: '31', name: 'Универсал' }, { id: '32', name: 'Хэтчбек' },
+    { id: '33', name: 'Кроссовер' }, { id: '34', name: 'Минивэн' }, { id: '35', name: 'Купе' },
 ];
 
 const DRIVETRAIN_TYPES = [
-    { id: '40', name: 'Передний' },
-    { id: '41', name: 'Задний' },
-    { id: '42', name: 'Полный' },
+    { id: '40', name: 'Передний' }, { id: '41', name: 'Задний' }, { id: '42', name: 'Полный' },
 ];
 
-// --- 1. ПАНЕЛЬ НАСТРОЕК (ФОРМА) ---
+const COLOR_TYPES = [
+    { id: '1', name: 'Черный' }, { id: '2', name: 'Белый' }, { id: '3', name: 'Серебристый' }, { id: '4', name: 'Серый' }, { id: '5', name: 'Красный' }, { id: '6', name: 'Синий' },
+];
+
+const STEERING_TYPES = [
+    { id: 'left', name: 'Слева' }, { id: 'right', name: 'Справа' },
+];
+
+// Хелпер для поиска имени по ID
+const getName = (list: any[], id: string) => list.find(item => item.id === id)?.name;
+
+
+// ==========================================
+// 2. КОМПОНЕНТ НАСТРОЕК (ФОРМА СЛЕВА)
+// ==========================================
 const NineNineNineSettings: FC = () => {
   const { register, setValue, watch } = useSettings();
   
-  // -- ЛОГИКА ДИНАМИЧЕСКИХ СПИСКОВ (ЗАГЛУШКА) --
-  // Здесь мы в будущем будем делать fetch к API, когда меняется categoryId или car_brand
-  // const { data: makes } = useFetch('/api/999/makes'); 
-  
   useEffect(() => {
-    // Дефолтные значения при загрузке
-    if (!watch('categoryId')) setValue('categoryId', '658'); // Всегда Транспорт
-    if (!watch('subcategoryId')) setValue('subcategoryId', '659'); // Легковые
-    if (!watch('offerType')) setValue('offerType', '776'); // Продам
     if (!watch('currency')) setValue('currency', 'eur');
-    if (!watch('regionId')) setValue('regionId', '12'); // Кишинев
+    if (!watch('offerType')) setValue('offerType', '776');
+    if (!watch('regionId')) setValue('regionId', '12');
+    if (!watch('subcategoryId')) setValue('subcategoryId', '659');
   }, []);
 
   return (
@@ -141,7 +146,7 @@ const NineNineNineSettings: FC = () => {
            </div>
 
            <div className="grid grid-cols-2 gap-3">
-               {/* Марка (Dynamic Dropdown) */}
+               {/* Марка */}
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Марка <span className="text-red-500">*</span></label>
                    <select {...register('car_brand')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
@@ -150,7 +155,7 @@ const NineNineNineSettings: FC = () => {
                    </select>
                </div>
 
-               {/* Модель (Dependent Dropdown) */}
+               {/* Модель */}
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Модель <span className="text-red-500">*</span></label>
                    <select {...register('car_model')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
@@ -165,15 +170,13 @@ const NineNineNineSettings: FC = () => {
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Регистрация</label>
                    <select {...register('car_registration')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       {REGISTRATION_TYPES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                       {REGISTRATION_TYPES.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                    </select>
                </div>
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Состояние</label>
                    <select {...register('car_condition')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       <option value="1">Не битый</option>
-                       <option value="2">Битый / Аварийный</option>
-                       <option value="3">На запчасти</option>
+                       {CONDITION_TYPES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                    </select>
                </div>
            </div>
@@ -196,14 +199,13 @@ const NineNineNineSettings: FC = () => {
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Тип кузова</label>
                    <select {...register('car_body')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       {BODY_TYPES.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                       {BODY_TYPES.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
                    </select>
                </div>
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Руль</label>
                    <select {...register('car_steering')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       <option value="left">Слева</option>
-                       <option value="right">Справа</option>
+                       {STEERING_TYPES.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                    </select>
                </div>
            </div>
@@ -212,27 +214,40 @@ const NineNineNineSettings: FC = () => {
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Тип топлива *</label>
                    <select {...register('car_fuel')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       {FUEL_TYPES.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                       {FUEL_TYPES.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
                    </select>
                </div>
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">КПП *</label>
                    <select {...register('car_gearbox')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       {GEARBOX_TYPES.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                       {GEARBOX_TYPES.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
                    </select>
                </div>
            </div>
 
            <div className="grid grid-cols-2 gap-3">
-               <Input label="Объем двигателя (см3)" type="number" placeholder="2000" {...register('car_engine_vol')} />
+               <Input label="Объем (см3)" type="number" placeholder="2000" {...register('car_engine_vol')} />
                <Input label="Мощность (л.с.)" type="number" placeholder="190" {...register('car_power')} />
            </div>
 
-           <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1">Привод</label>
-                <select {...register('car_drive')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                    {DRIVETRAIN_TYPES.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
+           <div className="grid grid-cols-2 gap-3">
+               <div>
+                    <label className="block text-xs font-medium text-gray-300 mb-1">Привод</label>
+                    <select {...register('car_drive')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
+                        {DRIVETRAIN_TYPES.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                    </select>
+               </div>
+               <div>
+                    <label className="block text-xs font-medium text-gray-300 mb-1">Цвет</label>
+                    <select {...register('car_color')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
+                        {COLOR_TYPES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </select>
+               </div>
+           </div>
+
+           <div className="grid grid-cols-2 gap-3">
+               <Input label="Кол-во дверей" type="number" placeholder="5" {...register('car_doors')} />
+               <Input label="Кол-во мест" type="number" placeholder="5" {...register('car_seats')} />
            </div>
        </div>
 
@@ -243,7 +258,15 @@ const NineNineNineSettings: FC = () => {
            </div>
 
            {/* Регион */}
-           <Input label="Регион ID (Пока ручной ввод)" placeholder="12 (Кишинев)" {...register('regionId')} />
+           <div>
+                <label className="block text-xs font-medium text-gray-300 mb-1">Регион</label>
+                <select {...register('regionId')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
+                    {REGIONS.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+           </div>
+
+           {/* Заголовок */}
+           <Input label="Заголовок" placeholder="BMW X5, 2018..." {...register('title')} />
 
            {/* Цена */}
            <div className="flex gap-2">
@@ -270,75 +293,140 @@ const NineNineNineSettings: FC = () => {
   );
 };
 
-// --- 2. ПРЕВЬЮ ---
+
+// ==========================================
+// 3. КОМПОНЕНТ ПРЕВЬЮ (БОЛЬШАЯ КАРТОЧКА СПРАВА)
+// ==========================================
 const NineNineNinePreview: FC = () => {
   const settings = useSettings(); 
   const { value } = useIntegration();
   
-  // Получаем данные для отображения
-  const title = settings.watch('title') || 'Без заголовка...'; // Заголовок (генерируется AI или вручную)
+  // Данные
+  const title = settings.watch('title');
   const price = settings.watch('price') || 'Договорная';
   const currency = settings.watch('currency') || 'EUR';
-  const offerType = settings.watch('offerType');
-  const region = settings.watch('regionId') === '12' ? 'Кишинев' : 'Молдова';
+  const regionName = getName(REGIONS, settings.watch('regionId')) || 'Молдова';
   
-  // Находим названия по ID для красивого отображения
-  const brandId = settings.watch('car_brand');
-  const brandName = MOCK_MAKES.find(m => m.id === brandId)?.name || '';
-  const modelId = settings.watch('car_model');
-  const modelName = MOCK_MODELS.find(m => m.id === modelId)?.name || '';
-  const year = settings.watch('car_year');
-  
-  // Автоматический заголовок для превью, если пользователь не ввел свой
-  const displayTitle = title !== 'Без заголовка...' ? title : `${brandName} ${modelName} ${year}`.trim() || 'Новое объявление';
+  // Авто-сборка заголовка
+  const brandName = getName(MOCK_MAKES, settings.watch('car_brand')) || '';
+  const modelName = getName(MOCK_MODELS, settings.watch('car_model')) || '';
+  const year = settings.watch('car_year') || '';
+  const displayTitle = title || `${brandName} ${modelName} ${year}`.trim() || 'Новое объявление';
 
-  const offerLabel = offerType === '777' ? 'Куплю' : 'Продам';
-  const offerColor = offerType === '777' ? 'text-green-600' : 'text-gray-500';
+  // Контент (очистка HTML)
+  const rawContent = value?.[0]?.content || '';
+  const description = rawContent.replace(/<[^>]+>/g, '\n'); 
+  const images = value?.[0]?.image || [];
+  const firstImage = images[0]?.path;
 
-  const description = value?.[0]?.content || '';
-  const firstImage = value?.[0]?.image?.[0]?.path;
-  const imageCount = value?.[0]?.image?.length || 0;
+  // Переключение картинок
+  const [activeImgIndex, setActiveImgIndex] = useState(0);
+  const activeImage = images[activeImgIndex]?.path || firstImage;
+
+  // Собираем характеристики для таблицы (ВСЕ ПОЛЯ)
+  const specs = [
+      { label: 'Марка', value: brandName },
+      { label: 'Модель', value: modelName },
+      { label: 'Год выпуска', value: year },
+      { label: 'Тип топлива', value: settings.watch('car_fuel') },
+      { label: 'КПП', value: settings.watch('car_gearbox') },
+      { label: 'Привод', value: settings.watch('car_drive') },
+      { label: 'Тип кузова', value: settings.watch('car_body') },
+      { label: 'Руль', value: settings.watch('car_steering') },
+      { label: 'Пробег', value: settings.watch('car_mileage') ? `${settings.watch('car_mileage')} км` : '' },
+      { label: 'Объем двигателя', value: settings.watch('car_engine_vol') ? `${settings.watch('car_engine_vol')} см³` : '' },
+      { label: 'Мощность', value: settings.watch('car_power') ? `${settings.watch('car_power')} л.с.` : '' },
+      { label: 'Регистрация', value: settings.watch('car_registration') },
+      { label: 'Состояние', value: settings.watch('car_condition') },
+      { label: 'Цвет', value: settings.watch('car_color') },
+      { label: 'Кол-во дверей', value: settings.watch('car_doors') },
+      { label: 'Кол-во мест', value: settings.watch('car_seats') },
+  ].filter(s => s.value); 
 
   return (
-    <div className="w-full bg-white rounded-md overflow-hidden border border-gray-300 font-sans text-left shadow-sm select-none text-black">
-      <div className="bg-[#ff6600] h-1 w-full"></div>
+    <div className="w-full bg-white rounded-md overflow-hidden border border-gray-300 font-sans text-left shadow-lg select-none text-black">
       
-      <div className="p-3 flex gap-3">
-        <div className="w-28 h-20 bg-gray-100 flex-shrink-0 rounded object-cover overflow-hidden flex items-center justify-center border border-gray-200 relative">
-            {firstImage ? (
-                <img src={firstImage} alt="Preview" className="w-full h-full object-cover" />
-            ) : (
-                <span className="text-gray-400 text-[10px]">Фото</span>
-            )}
-            {imageCount > 1 && (
-                <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1.5 rounded font-medium">
-                    +{imageCount}
-                </div>
-            )}
-        </div>
-
-        <div className="flex flex-col justify-between w-full min-w-0 h-24">
-            <div>
-                <div className="text-[#0079c2] font-medium text-sm leading-tight truncate mb-1 cursor-pointer hover:underline">
-                    {displayTitle}
-                </div>
-                
-                <div className="text-gray-500 text-[11px] line-clamp-2 leading-3 h-8">
-                    {description || 'Описание...'}
-                </div>
-            </div>
-            
-            <div className="flex justify-between items-end border-t border-gray-100 pt-1">
-                <div className="font-bold text-black text-base">
-                    {price} <span className="text-xs font-normal text-gray-500 uppercase">{currency}</span>
-                </div>
-                <div className="flex flex-col items-end">
-                    <span className={`text-[10px] ${offerColor} font-medium`}>{offerLabel}</span>
-                    <span className="text-[10px] text-gray-400">{region}</span>
-                </div>
-            </div>
-        </div>
+      {/* Шапка объявления */}
+      <div className="p-4 border-b border-gray-100 bg-gray-50">
+          <h1 className="text-xl font-bold text-[#0079c2] mb-1 leading-snug">
+              {displayTitle}
+          </h1>
+          <div className="flex justify-between items-end">
+              <div className="text-2xl font-bold text-black">
+                  {price} <span className="text-sm font-normal text-gray-500 uppercase">{currency}</span>
+              </div>
+              <div className="text-xs text-gray-400 bg-white px-2 py-1 rounded border">
+                  📅 Сегодня, 14:30
+              </div>
+          </div>
       </div>
+
+      {/* Галерея */}
+      <div className="bg-gray-200 aspect-[4/3] relative flex items-center justify-center overflow-hidden">
+          {activeImage ? (
+              <img src={activeImage} alt="Main" className="w-full h-full object-contain bg-black" />
+          ) : (
+              <div className="flex flex-col items-center text-gray-400">
+                  <span className="text-4xl mb-2">📷</span>
+                  <span className="text-sm">Нет фото</span>
+              </div>
+          )}
+          
+          {images.length > 1 && (
+              <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
+                  📷 {activeImgIndex + 1} / {images.length}
+              </div>
+          )}
+      </div>
+
+      {/* Миниатюры */}
+      {images.length > 1 && (
+          <div className="flex gap-1 p-1 overflow-x-auto bg-gray-100">
+              {images.map((img: any, idx: number) => (
+                  <div 
+                    key={idx} 
+                    onClick={() => setActiveImgIndex(idx)}
+                    className={`w-16 h-12 flex-shrink-0 cursor-pointer border-2 ${activeImgIndex === idx ? 'border-[#ff6600]' : 'border-transparent'}`}
+                  >
+                      <img src={img.path} className="w-full h-full object-cover" />
+                  </div>
+              ))}
+          </div>
+      )}
+
+      {/* Таблица характеристик (Теперь полная!) */}
+      {specs.length > 0 && (
+          <div className="p-4 bg-white">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {specs.map((spec, i) => (
+                      <div key={i} className="flex justify-between border-b border-gray-100 pb-1">
+                          <span className="text-gray-500">{spec.label}</span>
+                          <span className="text-black font-medium text-right">{spec.value}</span>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
+
+      {/* Описание */}
+      <div className="p-4 pt-2">
+          <h3 className="font-bold text-gray-800 mb-2 text-sm uppercase">Описание</h3>
+          <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed break-words">
+              {description || 'Добавьте описание товара в редакторе...'}
+          </div>
+      </div>
+
+      {/* Футер */}
+      <div className="p-4 bg-[#f2f9ff] border-t border-blue-100 mt-2 flex justify-between items-center">
+          <div>
+              <div className="text-xs text-gray-500">Регион</div>
+              <div className="text-sm font-bold text-[#0079c2]">{regionName}</div>
+          </div>
+          <button className="bg-[#81b6ea] text-white px-4 py-2 rounded text-sm font-bold shadow-sm">
+              📞 Показать телефон
+          </button>
+      </div>
+
     </div>
   );
 };
