@@ -23,6 +23,12 @@ export class NineNineNine implements SocialProvider {
   async customFields() {
     return [
       {
+        key: 'apiKey',
+        label: 'API Key',
+        validation: '/^.+$/',
+        type: 'text' as const,
+      },
+      {
         key: 'phoneNumber',
         label: 'Phone Number (Номер телефона)',
         validation: '/^.+$/',
@@ -37,10 +43,11 @@ export class NineNineNine implements SocialProvider {
     ];
   }
 
-  async generateAuthUrl() {
+  async generateAuthUrl(input: any) {
     const state = makeId(17);
+    const code = Buffer.from(JSON.stringify(input)).toString('base64');
     return {
-      url: state,
+      url: `${process.env.FRONTEND_URL}/integrations/social/callback?code=${code}&state=${state}`,
       codeVerifier: makeId(10),
       state,
     };
@@ -52,12 +59,12 @@ export class NineNineNine implements SocialProvider {
     refresh?: string;
   }): Promise<AuthTokenDetails | string> {
     try {
-      const { phoneNumber, location } = JSON.parse(
+      const { apiKey, phoneNumber, location } = JSON.parse(
         Buffer.from(params.code, 'base64').toString()
       );
 
-      // Сохраняем данные пользователя в accessToken (так как API ключ теперь в ENV)
-      const tokenData = JSON.stringify({ phoneNumber, location });
+      // Сохраняем API ключ и номер телефона в accessToken
+      const tokenData = JSON.stringify({ apiKey, phoneNumber, location });
       const accessToken = Buffer.from(tokenData).toString('base64');
 
       return {
@@ -66,7 +73,7 @@ export class NineNineNine implements SocialProvider {
         expiresIn: dayjs().add(100, 'year').unix() - dayjs().unix(),
         id: makeId(10),
         name: `999 User (${phoneNumber})`,
-        picture: 'https://999.md/public/images/logo.svg',
+        picture: 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y',
         username: phoneNumber,
       } as AuthTokenDetails;
     } catch (err) {
@@ -151,19 +158,15 @@ export class NineNineNine implements SocialProvider {
   ): Promise<PostResponse[]> {
     const content = postDetails[0].message;
     
-    // Получаем API ключ из ENV
-    const apiKey = process.env.NINENINENINE_API_KEY;
-    if (!apiKey) {
-      throw new Error('NINENINENINE_API_KEY is not set in environment variables');
-    }
-
     // Декодируем данные пользователя из accessToken
-    let userData: { phoneNumber: string; location: string };
+    let userData: { apiKey: string; phoneNumber: string; location: string };
     try {
       userData = JSON.parse(Buffer.from(accessToken, 'base64').toString());
     } catch (e) {
       throw new Error('Invalid access token format');
     }
+
+    const { apiKey, phoneNumber } = userData;
 
     const authHeader = `Basic ${Buffer.from(`${apiKey}:`).toString('base64')}`;
     const settings = postDetails[0].settings || {};

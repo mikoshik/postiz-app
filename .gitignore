@@ -59,3 +59,6 @@ Thumbs.db
 libraries/plugins/src/plugins.ts
 i18n.cache
 999_docs.html
+apps/backend/undefined
+apps/backend/uploads
+apps/frontend/uploads
