@@ -36,16 +36,6 @@ const OFFER_TYPES = [
     { id: '778', name: 'Меняю' },
 ];
 
-const MOCK_MAKES = [
-    { id: '124', name: 'BMW' }, { id: '125', name: 'Mercedes-Benz' }, { id: '126', name: 'Toyota' },
-    { id: '127', name: 'Ford' }, { id: '128', name: 'Volkswagen' }, { id: '129', name: 'Honda' },
-];
-
-const MOCK_MODELS = [
-    { id: '555', name: 'X5' }, { id: '556', name: '5 Series' }, { id: '557', name: '3 Series' },
-    { id: '558', name: 'E-Class' }, { id: '559', name: 'Passat' }, { id: '560', name: 'Camry' }
-];
-
 const REGISTRATION_TYPES = [
     { id: '1', name: 'Республика Молдова' },
     { id: '2', name: 'Приднестровье' },
@@ -108,7 +98,41 @@ const getName = (list: any[], id: string) => {
 // ==========================================
 const NineNineNineSettings: FC = () => {
   const { register, setValue, watch } = useSettings();
-  
+  const [makes, setMakes] = useState([]);
+  const [models, setModels] = useState([]);
+
+  useEffect(() => {
+    console.log('[Frontend] Fetching Makes...');
+    fetch('http://localhost:8000/api/999/makes')
+      .then((response) => response.json())
+      .then((data) => {
+        console.log('[Frontend] Received Makes:', data);
+        setMakes(data);
+      })
+      .catch((err) => {
+        console.error('[Frontend] Python Service unavailable (Makes)', err);
+      });
+  }, []);
+
+  useEffect(() => {
+    const brandId = watch('car_brand');
+    if (!brandId) {
+      setModels([]);
+      return;
+    }
+
+    console.log('[Frontend] Fetching Models for Brand ID:', brandId);
+    fetch(`http://localhost:8000/api/999/models?make_id=${brandId}`)
+      .then((response) => response.json())
+      .then((data) => {
+        console.log('[Frontend] Received Models:', data);
+        setModels(data);
+      })
+      .catch((err) => {
+        console.error('[Frontend] Python Service unavailable (Models)', err);
+      });
+  }, [watch('car_brand')]);
+
   useEffect(() => {
     if (!watch('currency')) setValue('currency', 'eur');
     if (!watch('offerType')) setValue('offerType', '776');
@@ -159,14 +183,18 @@ const NineNineNineSettings: FC = () => {
                    <label className="block text-xs font-medium text-gray-300 mb-1">Марка <span className="text-red-500">*</span></label>
                    <select {...register('car_brand')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
                        <option value="">Выберите...</option>
-                       {MOCK_MAKES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                       {makes.map((m) => (
+                         <option key={m.id} value={m.id}>{m.name}</option>
+                       ))}
                    </select>
                </div>
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Модель <span className="text-red-500">*</span></label>
                    <select {...register('car_model')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
                        <option value="">Выберите...</option>
-                       {MOCK_MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                       {models.map((m) => (
+                         <option key={m.id} value={m.id}>{m.name}</option>
+                       ))}
                    </select>
                </div>
            </div>
@@ -319,10 +347,10 @@ const NineNineNinePreview: FC = () => {
   const negotiable = settings.watch('negotiable');
   
   // Авто-сборка заголовка
-  const brandName = getName(MOCK_MAKES, settings.watch('car_brand')) || '';
-  const modelName = getName(MOCK_MODELS, settings.watch('car_model')) || '';
+  const brandId = settings.watch('car_brand');
+  const modelId = settings.watch('car_model');
   const year = settings.watch('car_year') || '';
-  const displayTitle = title || `${brandName} ${modelName} ${year}`.trim() || 'Новое объявление';
+  const displayTitle = title || `${brandId} ${modelId} ${year}`.trim() || 'Новое объявление';
 
   // Контент (очистка HTML)
   const rawContent = value?.[0]?.content || '';
@@ -336,8 +364,8 @@ const NineNineNinePreview: FC = () => {
 
   // --- СБОРКА ТАБЛИЦЫ ХАРАКТЕРИСТИК (ВСЕ ПОЛЯ) ---
   const specs = [
-      { label: 'Марка', value: brandName },
-      { label: 'Модель', value: modelName },
+      { label: 'Марка', value: brandId },
+      { label: 'Модель', value: modelId },
       { label: 'Год выпуска', value: year },
       { label: 'Регистрация', value: getName(REGISTRATION_TYPES, settings.watch('car_registration')) },
       { label: 'Состояние', value: getName(CONDITION_TYPES, settings.watch('car_condition')) },
