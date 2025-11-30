@@ -138,56 +138,56 @@ async def get_generations(
     model_id: str = Query(default=""), 
     subcat: str = DEFAULT_SUBCATEGORY
 ):
+    # 1. Защита от дурака
     if not model_id or model_id == "undefined":
         return JSONResponse(content=[])
 
-    print(f"🚀 ЗАПРОС ПОКОЛЕНИЙ для модели ID: {model_id}...")
+    print(f"🚀 ЗАПРОС ПОКОЛЕНИЙ. Родитель (Модель): {FEATURE_MODEL_ID}, Значение ID: {model_id}")
 
-    # Используем публичный API, так как он надежнее
-    url = "https://999.md/features/dependent_options"
+    # 2. URL (Как ты скинул)
+    url = "https://partners-api.999.md/dependent_options"
     
-    # СТРОГО ПО ДОКУМЕНТАЦИИ:
+    # 3. Параметры (Строго по твоей логике)
     params = {
         "subcategory_id": subcat,            # 659
         "dependency_feature_id": FEATURE_MODEL_ID, # 21 (Это ID характеристики "Модель")
-        "parent_option_id": model_id,        # ID выбранной модели (например 223)
+        "parent_option_id": model_id,        # ID конкретной модели (например 1010)
         "lang": "ru"
     }
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Accept": "application/json",
-        "Referer": "https://999.md/"
-    }
-
     try:
-        response = requests.get(url, headers=headers, params=params)
+        # Шлем запрос с ключом (get_headers)
+        response = requests.get(url, headers=get_headers(), params=params)
         
+        # Логируем ссылку, чтобы ты мог проверить её в браузере, если что-то пойдет не так
         print(f"🔗 Ссылка: {response.url}")
         
         if response.status_code != 200:
-            print(f"📦 Ошибка 999: {response.text}")
+            print(f"📦 Ошибка от 999: {response.text}")
             return JSONResponse(content=[])
 
         data = response.json()
-        
-        # Обработка ответа
-        options = data if isinstance(data, list) else data.get("options", [])
-        
-        if not options:
-            print("⚠️ Список поколений пуст (возможно, у этой модели их нет в базе 999).")
+        print(f"📦 Ответ 999: {data}")
+        # 4. Парсинг ответа (Универсальный)
+        # Иногда 999 возвращает просто список, иногда { options: [...] }
+        options = []
+        if isinstance(data, list):
+            options = data
+        elif isinstance(data, dict):
+            options = data.get("Options", [])
 
+        # 5. Форматирование
         result = sorted(
             [{"id": str(opt["id"]), "name": opt.get("title", opt.get("value", "???"))} for opt in options],
             key=lambda x: x["name"]
         )
+        
         print(f"✅ Успех: Найдено {len(result)} поколений.")
         return JSONResponse(content=result)
 
     except Exception as e:
-        print(f"❌ ERROR: {str(e)}")
+        print(f"❌ Python Error: {str(e)}")
         return JSONResponse(content=[])
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
