@@ -1,11 +1,13 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import os
 import requests
 from dotenv import load_dotenv
 import base64
-
+from ai_parser import ai_parser
+import json
 # 1. Загрузка конфигов
 load_dotenv()
 NINE_API_KEY = os.getenv("NINE_API_KEY")
@@ -20,6 +22,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class ParseRequest(BaseModel):
+    text: str
+
+@app.post("/api/ai/parse")
+async def parse_text(request: ParseRequest):
+    print(f"🤖 AI Parsing text: {request.text[:50]}...")
+    try:
+        result = ai_parser.parse(request.text)
+        # Save the result to a JSON file
+        with open("response.json", "w", encoding="utf-8") as json_file:
+            json.dump(result, json_file, ensure_ascii=False, indent=4)
+        return JSONResponse(content=result)
+    except Exception as e:
+        print(f"❌ AI Error: {str(e)}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 # --- КОНСТАНТЫ 999 ---
 CATEGORY_ID = "658"      # Транспорт
