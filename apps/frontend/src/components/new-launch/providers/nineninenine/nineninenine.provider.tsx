@@ -100,6 +100,8 @@ const NineNineNineSettings: FC = () => {
   const { register, setValue, watch } = useSettings();
   const [makes, setMakes] = useState([]);
   const [models, setModels] = useState([]);
+  const [generations, setGenerations] = useState<any[]>([]);
+  const selectedModel = watch('car_model');
 
   useEffect(() => {
     console.log('[Frontend] Fetching Makes...');
@@ -132,6 +134,25 @@ const NineNineNineSettings: FC = () => {
         console.error('[Frontend] Python Service unavailable (Models)', err);
       });
   }, [watch('car_brand')]);
+
+  useEffect(() => {
+    const modelId = watch('car_model');
+    if (!modelId) {
+      setGenerations([]);
+      return;
+    }
+
+    console.log('[Frontend] Fetching Generations for Model ID:', modelId);
+    fetch(`http://localhost:8000/api/999/generations?model_id=${modelId}`)
+      .then((response) => response.json())
+      .then((data) => {
+        console.log('[Frontend] Received Generations:', data);
+        setGenerations(data);
+      })
+      .catch((err) => {
+        console.error('[Frontend] Python Service unavailable (Generations)', err);
+      });
+  }, [watch('car_model')]);
 
   useEffect(() => {
     if (!watch('currency')) setValue('currency', 'eur');
@@ -197,6 +218,21 @@ const NineNineNineSettings: FC = () => {
                        ))}
                    </select>
                </div>
+               <div>
+               <label className="block text-xs font-medium text-gray-300 mb-1">
+                   Поколение {generations.length === 0 && selectedModel && <span className="text-[9px] text-gray-500">(Нет или загрузка)</span>}
+               </label>
+               <select 
+                   {...register('car_generation')} 
+                   className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none disabled:opacity-50"
+                   disabled={!selectedModel || generations.length === 0}
+               >
+                   <option value="">Не выбрано</option>
+                   {Array.isArray(generations) && generations.map(g => (
+                       <option key={g.id} value={g.id}>{g.name}</option>
+                   ))}
+               </select>
+           </div>
            </div>
 
            <div className="grid grid-cols-2 gap-3">
@@ -219,8 +255,8 @@ const NineNineNineSettings: FC = () => {
            <Input label="VIN-код" placeholder="WBA..." {...register('car_vin')} />
        </div>
 
-       {/* === БЛОК 3: ТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ === */}
-       <div className="bg-gray-900/40 p-4 rounded border border-gray-700 flex flex-col gap-4">
+        {/* === БЛОК 3: ТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ === */}
+        <div className="bg-gray-900/40 p-4 rounded border border-gray-700 flex flex-col gap-4">
            <div className="text-sm font-bold text-blue-400 uppercase tracking-wide border-b border-gray-700 pb-1">
                3. Свойства (Features)
            </div>
@@ -234,14 +270,12 @@ const NineNineNineSettings: FC = () => {
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Тип кузова</label>
                    <select {...register('car_body')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       <option value="">Не выбрано</option>
                        {BODY_TYPES.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                    </select>
                </div>
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Руль</label>
                    <select {...register('car_steering')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       <option value="">Не выбрано</option>
                        {STEERING_TYPES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                    </select>
                </div>
@@ -251,14 +285,12 @@ const NineNineNineSettings: FC = () => {
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">Тип топлива *</label>
                    <select {...register('car_fuel')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       <option value="">Не выбрано</option>
                        {FUEL_TYPES.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                    </select>
                </div>
                <div>
                    <label className="block text-xs font-medium text-gray-300 mb-1">КПП *</label>
                    <select {...register('car_gearbox')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                       <option value="">Не выбрано</option>
                        {GEARBOX_TYPES.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                    </select>
                </div>
@@ -273,14 +305,12 @@ const NineNineNineSettings: FC = () => {
                <div>
                     <label className="block text-xs font-medium text-gray-300 mb-1">Привод</label>
                     <select {...register('car_drive')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                        <option value="">Не выбрано</option>
                         {DRIVETRAIN_TYPES.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                </div>
                <div>
                     <label className="block text-xs font-medium text-gray-300 mb-1">Цвет</label>
                     <select {...register('car_color')} className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none">
-                        <option value="">Не выбрано</option>
                         {COLOR_TYPES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                </div>
@@ -366,6 +396,7 @@ const NineNineNinePreview: FC = () => {
   const specs = [
       { label: 'Марка', value: brandId },
       { label: 'Модель', value: modelId },
+      { label: 'Поколение', value: settings.watch('car_generation') },
       { label: 'Год выпуска', value: year },
       { label: 'Регистрация', value: getName(REGISTRATION_TYPES, settings.watch('car_registration')) },
       { label: 'Состояние', value: getName(CONDITION_TYPES, settings.watch('car_condition')) },
