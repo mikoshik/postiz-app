@@ -62,4 +62,5 @@ i18n.cache
 apps/backend/undefined
 apps/backend/uploads
 apps/frontend/uploads
-python_service/__pycache__/main.cpython-314.pyc
+__pycache__
+*.pyc
