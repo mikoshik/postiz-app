@@ -2,15 +2,56 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from typing import Optional
 import os
 import requests
 from dotenv import load_dotenv
 import base64
 from ai_parser import ai_parser
 import json
+
 # 1. Загрузка конфигов
 load_dotenv()
 NINE_API_KEY = os.getenv("NINE_API_KEY")
+
+# --- КОНФИГУРАЦИЯ ПОЛЕЙ ---
+
+# Статичные значения по умолчанию: Feature ID -> Default Option ID
+STATIC_DEFAULTS = {
+    "775": "18592",    # Регистрация -> Республика Молдова
+    "593": "18668",    # Состояние -> С пробегом
+    "1761": "29670",   # Наличие -> На месте
+    "1763": "33044",   # Происхождение автомобиля -> Другое
+    "795": "23241",    # Автор объявления -> Автодилер
+    "1196": "21978",   # Руль -> Правый
+    "846": "19007",    # Количество мест -> 3-4
+}
+
+# Динамические поля: Feature ID -> Ключ из AI парсера
+DYNAMIC_IDS_MAP = {
+    "20": "make",           # Марка
+    "21": "model",          # Модель
+    "2095": "generation",   # Поколение
+    "19": "year",           # Год выпуска
+    "2": "price",           # Цена
+    "104": "mileage",       # Пробег
+    "2553": "engine",       # Двигатель
+    "107": "power",         # Мощность
+    "151": "fuel_type",     # Тип топлива
+    "101": "transmission",  # КПП
+    "108": "drive",         # Привод
+    "102": "body_type",     # Тип кузова
+    "17": "color",          # Цвет
+    "851": "doors",         # Количество дверей
+    "2512": "vin",          # VIN-код
+    "13": "description",    # Описание
+    "2513": "range",        # Autonomie (запас хода)
+    "2554": "battery",      # Ёмкость батареи
+    "2555": "charge_time",  # Быстрая зарядка
+}
+
+# Путь к файлу с фичами
+FEATURES_FILE_PATH = os.path.join(os.path.dirname(__file__), "feacher_for_post.json")
 
 app = FastAPI()
 
@@ -25,6 +66,209 @@ app.add_middleware(
 
 class ParseRequest(BaseModel):
     text: str
+
+class PostConfigRequest(BaseModel):
+    text: Optional[str] = None  # Опциональный текст для AI парсинга
+
+
+def load_features_json() -> dict:
+    """Загружает JSON файл с фичами"""
+    try:
+        with open(FEATURES_FILE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"❌ Файл {FEATURES_FILE_PATH} не найден")
+        return {"features_groups": []}
+    except json.JSONDecodeError as e:
+        print(f"❌ Ошибка парсинга JSON: {e}")
+        return {"features_groups": []}
+
+
+def find_option_by_id(options: list, option_id: str) -> Optional[dict]:
+    """Находит опцию по ID в списке опций"""
+    if not options:
+        return None
+    for opt in options:
+        if str(opt.get("id")) == str(option_id):
+            return {"id": str(opt["id"]), "title": opt.get("title", "")}
+    return None
+
+
+def find_option_by_title(options: list, title: str) -> Optional[dict]:
+    """Находит опцию по названию (для AI результатов)"""
+    if not options or not title:
+        return None
+    title_lower = title.lower().strip()
+    for opt in options:
+        if opt.get("title", "").lower().strip() == title_lower:
+            return {"id": str(opt["id"]), "title": opt.get("title", "")}
+    # Частичное совпадение
+    for opt in options:
+        if title_lower in opt.get("title", "").lower():
+            return {"id": str(opt["id"]), "title": opt.get("title", "")}
+    return None
+
+
+def build_ai_request(features_data: dict) -> dict:
+    """
+    Формирует запрос для AI парсера только с динамическими полями.
+    Для drop_down - передаём options, для текстовых - пустую строку.
+    """
+    ai_request = {}
+    
+    for group in features_data.get("features_groups", []):
+        for feature in group.get("features", []):
+            feature_id = str(feature.get("id", ""))
+            
+            # Только динамические поля
+            if feature_id not in DYNAMIC_IDS_MAP:
+                continue
+            
+            ai_key = DYNAMIC_IDS_MAP[feature_id]
+            feature_type = feature.get("type", "")
+            options = feature.get("options", [])
+            
+            # Для drop_down с options - передаём список опций
+            if options and feature_type == "drop_down_options":
+                ai_request[ai_key] = {
+                    "value": "",
+                    "options": [opt.get("title", "") for opt in options]
+                }
+            else:
+                # Для текстовых/числовых полей - просто пустая строка
+                ai_request[ai_key] = ""
+    
+    return ai_request
+
+
+def process_feature(feature: dict, ai_result: dict) -> dict:
+    """Обрабатывает одну фичу и возвращает очищенную структуру"""
+    feature_id = str(feature.get("id", ""))
+    feature_type = feature.get("type", "")
+    options = feature.get("options", [])
+    
+    # Базовая структура
+    processed = {
+        "id": feature_id,
+        "title": feature.get("title", ""),
+        "type": feature_type,
+        "required": feature.get("required", False),
+        "label": "",
+        "label_id": "",
+    }
+    
+    # Добавляем options если есть
+    if options:
+        processed["options"] = [
+            {"id": str(opt["id"]), "title": opt.get("title", "")} 
+            for opt in options
+        ]
+    
+    # Добавляем units если есть
+    if feature.get("units"):
+        processed["units"] = feature.get("units")
+    
+    # --- ОПРЕДЕЛЯЕМ LABEL ---
+    
+    # 1. Проверяем динамические поля (AI результат)
+    if feature_id in DYNAMIC_IDS_MAP:
+        ai_key = DYNAMIC_IDS_MAP[feature_id]
+        ai_value = ai_result.get(ai_key)
+        
+        if ai_value:
+            # Для полей с опциями - ищем соответствующую опцию
+            if options and feature_type == "drop_down_options":
+                matched_option = find_option_by_title(options, str(ai_value))
+                if matched_option:
+                    processed["label"] = matched_option["title"]
+                    processed["label_id"] = matched_option["id"]
+                else:
+                    processed["label"] = str(ai_value)
+            else:
+                processed["label"] = str(ai_value)
+    
+    # 2. Если label пустой - проверяем статичные дефолты
+    if not processed["label"] and feature_id in STATIC_DEFAULTS:
+        default_option_id = STATIC_DEFAULTS[feature_id]
+        
+        if options:
+            matched_option = find_option_by_id(options, default_option_id)
+            if matched_option:
+                processed["label"] = matched_option["title"]
+                processed["label_id"] = matched_option["id"]
+    
+    # 3. Проверяем default_value из JSON
+    if not processed["label"] and feature.get("default_value"):
+        default_val = feature["default_value"]
+        if isinstance(default_val, dict) and "options" in default_val:
+            opt = default_val["options"]
+            processed["label"] = opt.get("title", "")
+            processed["label_id"] = str(opt.get("id", ""))
+    
+    return processed
+
+
+@app.post("/api/post-config")
+async def get_post_config(request: PostConfigRequest):
+    """
+    Получает конфигурацию полей для создания поста.
+    
+    - Загружает структуру полей из features.json
+    - Если передан text - формирует запрос для AI только с динамическими полями
+    - Применяет статичные дефолты для полей без AI значений
+    - Возвращает структуру с группами и полями
+    """
+    print(f"📋 POST /api/post-config. Текст: {request.text[:50] if request.text else 'Пусто'}...")
+    
+    # 1. Загружаем JSON с фичами
+    features_data = load_features_json()
+    
+    if not features_data.get("features_groups"):
+        return JSONResponse(
+            content={"error": "Не удалось загрузить конфигурацию полей"}, 
+            status_code=500
+        )
+    
+    # 2. Запускаем AI парсер (если есть текст)
+    ai_result = {}
+    if request.text:
+        try:
+            # Формируем запрос только с динамическими полями
+            ai_request = build_ai_request(features_data)
+            print(f"🤖 AI запрос: {json.dumps(ai_request, ensure_ascii=False, indent=2)}")
+            
+            # Отправляем в AI парсер текст + структуру полей
+            ai_result = ai_parser.parse(request.text, ai_request)
+            if not isinstance(ai_result, dict):
+                ai_result = {}
+            print(f"🤖 AI ответ: {ai_result}")
+        except Exception as e:
+            print(f"❌ AI Error: {str(e)}")
+            ai_result = {}
+    
+    # 3. Обрабатываем и трансформируем структуру
+    result_groups = []
+    
+    for group in features_data.get("features_groups", []):
+        processed_group = {
+            "title": group.get("title", ""),
+            "features": []
+        }
+        
+        for feature in group.get("features", []):
+            processed_feature = process_feature(feature, ai_result)
+            processed_group["features"].append(processed_feature)
+        
+        result_groups.append(processed_group)
+    
+    # 4. Формируем финальный ответ (только features_groups)
+    response = {
+        "features_groups": result_groups
+    }
+    
+    print(f"✅ Конфигурация сформирована: {len(result_groups)} групп")
+    return JSONResponse(content=response)
+
 
 @app.post("/api/ai/parse")
 async def parse_text(request: ParseRequest):
