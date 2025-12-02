@@ -64,3 +64,4 @@ apps/backend/uploads
 apps/frontend/uploads
 __pycache__
 *.pyc
+python_service/venv

@@ -1,4 +1,14 @@
+# FastAPI и веб
 fastapi
-uvicorn
+uvicorn[standard]
 requests
-dotenv
+python-dotenv
+
+# Pydantic для валидации
+pydantic
+
+# AI/LLM
+langchain
+langchain-openai
+langchain-core
+openai
