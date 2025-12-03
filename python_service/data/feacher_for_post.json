@@ -594,12 +594,6 @@
                 {
                     "id": "775",
                     "title": "Регистрация",
-                    "default_value": {                        
-                        "options" : {
-                            "id": "18592",
-                            "title": "Республика Молдова"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -631,12 +625,6 @@
                     "id": "593",
                     "title": "Состояние",
                     "depends_on": null,
-                    "default_value": {                        
-                        "options" : {
-                            "id": "18668",
-                            "title": "С пробегом"
-                        }
-                    },
                     "required": true,
                     "options": [
                         {
@@ -658,12 +646,6 @@
                 {
                     "id": "1761",
                     "title": "Наличие",
-                    "default_value": {                        
-                        "options" : {
-                            "id": "29670",
-                            "title": "На месте"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -686,13 +668,6 @@
                 {
                     "id": "1763",
                     "title": "Происхождение автомобиля",
-                    
-                    "default_value": {                        
-                         "options" : {
-                            "id": "33044",
-                            "title": "Другое"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -727,12 +702,6 @@
                 {
                     "id": "795",
                     "title": "Автор объявления",
-                    "default_value": {                        
-                        "options" : {
-                            "id": "23241",
-                            "title": "Автодилер"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -806,12 +775,6 @@
                 {
                     "id": "1196",
                     "title": "Руль",
-                    "default_value": {                        
-                        "options" : {
-                            "id": "21978",
-                            "title": "Правый"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -830,12 +793,6 @@
                 {
                     "id": "846",
                     "title": "Количество мест",
-                    "default_value": {                        
-                        "options" : {
-                            "id": "19007",
-                            "title": "3-4"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -878,6 +835,15 @@
                     ],
                     "units": null,
                     "type": "drop_down_options"
+                },
+                {
+                    "id": "12",
+                    "title": "Заголовок объявления",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "textarea_text"
                 },
                 {
                     "id": "102",
