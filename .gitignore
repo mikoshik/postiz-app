@@ -59,9 +59,10 @@ Thumbs.db
 libraries/plugins/src/plugins.ts
 i18n.cache
 999_docs.html
-apps/backend/undefined
-apps/backend/uploads
-apps/frontend/uploads
+/apps/backend/undefined
+/apps/backend/uploads
+./apps/frontend/uploads
 __pycache__
 *.pyc
 python_service/venv
+
