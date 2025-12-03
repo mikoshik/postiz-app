@@ -96,163 +96,114 @@ export class NineNineNine implements SocialProvider {
     };
   }
 
-  // Хелпер для загрузки изображения на 999.md
-  private async uploadImage(url: string, apiToken: string): Promise<string> {
-    try {
-      // 1. Скачиваем изображение
-      const imageResponse = await fetch(url);
-      if (!imageResponse.ok) throw new Error(`Failed to fetch image: ${url}`);
-      const blob = await imageResponse.blob();
-
-      // 2. Формируем FormData
-      const formData = new FormData();
-      formData.append('file', blob, 'image.jpg');
-
-      // 3. Отправляем на 999.md
-      const uploadResponse = await fetch('https://partners-api.999.md/images', {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${apiToken}:`).toString('base64')}`,
-        },
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        const text = await uploadResponse.text();
-        throw new Error(`Failed to upload image to 999: ${text}`);
-      }
-
-      const data = await uploadResponse.json();
-      return data.image_id;
-    } catch (e) {
-      console.error('Image upload error:', e);
-      throw e;
-    }
-  }
-
-  // Заглушка для ИИ парсинга
-  private async parseWithAi(text: string): Promise<any> {
-    // TODO: Здесь должен быть вызов к OpenAI или другому LLM
-    // const completion = await openai.chat.completions.create({ ... });
-    
-    // Примерные данные которые нужны 999 про машины (JSON заглушка)
-    return {
-      category_id: '658', // Транспорт
-      subcategory_id: '659', // Легковые автомобили
-      offer_type: '776', // Продам
-      features: [
-        { id: '14', value: 'BMW' }, // Марка (пример)
-        { id: '15', value: '5 Series' }, // Модель (пример)
-        { id: '12', value: '2018' }, // Год выпуска
-        { id: '16', value: 'Diesel' }, // Тип топлива
-        { id: '18', value: 'Automatic' }, // КПП
-      ],
-    };
-  }
-
   async post(
     id: string,
     accessToken: string,
     postDetails: PostDetails[],
-    integration: Integration
+    integration: Integration,
+    settings?: any
   ): Promise<PostResponse[]> {
-    const content = postDetails[0].message;
+    const PYTHON_API_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
     
-    // Декодируем данные пользователя из accessToken
-    let userData: { apiKey: string; phoneNumber: string; location: string };
-    try {
-      userData = JSON.parse(Buffer.from(accessToken, 'base64').toString());
-    } catch (e) {
-      throw new Error('Invalid access token format');
-    }
-
-    const { apiKey, phoneNumber } = userData;
-
-    const authHeader = `Basic ${Buffer.from(`${apiKey}:`).toString('base64')}`;
-    const settings = postDetails[0].settings || {};
-
-    try {
-      // 1. Загружаем все изображения
-      const mediaFiles = postDetails[0].media || [];
-      const uploadedImageIds: string[] = [];
-
-      for (const media of mediaFiles) {
-        // Пропускаем видео, так как 999 API (в этом примере) работает с картинками
-        if (media.path.match(/\.(jpg|jpeg|png|webp)$/i)) {
-            try {
-                const imageId = await this.uploadImage(media.path, apiKey);
-                uploadedImageIds.push(imageId);
-            } catch (e) {
-                console.warn(`Skipping image ${media.path} due to upload error.`);
+    console.log('[NineNineNine.post] Начало публикации...');
+    console.log('[NineNineNine.post] Settings:', JSON.stringify(settings, null, 2));
+    
+    const results: PostResponse[] = [];
+    
+    for (const post of postDetails) {
+      try {
+        // Собираем URLs изображений из поста
+        const images: string[] = (post.media || [])
+          .filter((m: any) => m.url || m.path)
+          .map((m: any) => m.url || m.path);
+        
+        console.log(`[NineNineNine.post] Images: ${images.length} шт.`);
+        
+        // Собираем features из settings
+        const features: Array<{ id: string; value: string; unit?: string }> = [];
+        
+        if (settings) {
+          // Проходим по всем полям settings и собираем feature_*
+          for (const [key, value] of Object.entries(settings)) {
+            if (key.startsWith('feature_') && value !== undefined && value !== null && value !== '') {
+              const featureId = key.replace('feature_', '').replace('_unit', '');
+              
+              // Пропускаем поля unit — они обрабатываются вместе с основным полем
+              if (key.endsWith('_unit')) continue;
+              
+              // Проверяем есть ли unit для этого поля
+              const unitKey = `feature_${featureId}_unit`;
+              const unit = settings[unitKey] as string | undefined;
+              
+              features.push({
+                id: featureId,
+                value: String(value),
+                ...(unit && { unit }),
+              });
             }
+          }
         }
+        
+        console.log(`[NineNineNine.post] Features: ${features.length} шт.`);
+        console.log('[NineNineNine.post] Features data:', JSON.stringify(features, null, 2));
+        
+        // Вызываем Python API
+        const response = await fetch(`${PYTHON_API_URL}/api/create-advert`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            images,
+            features,
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[NineNineNine.post] HTTP Error:', response.status, errorText);
+          results.push({
+            id: post.id,
+            postId: '',
+            releaseURL: '',
+            status: 'error',
+            error: `HTTP ${response.status}: ${errorText}`,
+          } as any);
+          continue;
+        }
+        
+        const result = await response.json();
+        console.log('[NineNineNine.post] Response:', result);
+        
+        if (result.success) {
+          results.push({
+            id: post.id,
+            postId: result.advert_id || '',
+            releaseURL: result.url || '',
+            status: 'posted',
+          });
+        } else {
+          results.push({
+            id: post.id,
+            postId: '',
+            releaseURL: '',
+            status: 'error',
+            error: result.error || 'Unknown error',
+          } as any);
+        }
+        
+      } catch (error) {
+        console.error('[NineNineNine.post] Exception:', error);
+        results.push({
+          id: post.id,
+          postId: '',
+          releaseURL: '',
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        } as any);
       }
-
-      // 2. Парсим текст с помощью ИИ (получаем характеристики авто)
-      const aiData = await this.parseWithAi(content);
-
-      // 3. Подготавливаем данные объявления
-      // Пытаемся извлечь заголовок из первой строки
-      const lines = content.split('\n');
-      let title = settings.title || lines[0].substring(0, 50); // Максимум 50 символов
-      if (title.length === 0) title = 'New Advert';
-
-      // Описание - весь текст
-      const description = content;
-
-      // Собираем payload
-      const payload = {
-        title: title,
-        description: description,
-        price: {
-          value: settings.price ? Number(settings.price) : 0, // Цена по умолчанию, пользователь изменит на сайте
-          unit: 'eur',
-        },
-        ...aiData, // Вставляем данные от ИИ (category, features и т.д.)
-        region_id: '12', // Можно использовать userData.location для поиска ID региона
-        contacts: {
-            phones: [userData.phoneNumber]
-        },
-        images: uploadedImageIds 
-      };
-
-      console.log('Posting to 999.md with AI data:', JSON.stringify(payload, null, 2));
-
-      // 4. Создаем объявление
-      const response = await fetch('https://partners-api.999.md/adverts', {
-        method: 'POST',
-        headers: {
-          Authorization: authHeader,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const responseData = await response.json();
-
-      return [
-        {
-          id: postDetails[0].id,
-          status: 'completed',
-          postId: responseData.id,
-          releaseURL: `https://999.md/ru/${responseData.id}`,
-        },
-      ];
-    } catch (err) {
-      console.error('Failed to post to 999:', err);
-      return [
-        {
-          id: postDetails[0].id,
-          status: 'failed',
-          postId: undefined,
-          releaseURL: undefined,
-        },
-      ];
     }
+    
+    return results;
   }
 }
