@@ -48,17 +48,6 @@ const REGIONS = [
   { id: '14', name: 'Другой / Вся Молдова' },
 ];
 
-// Заглушка текста для AI парсинга (потом подключим реальный)
-const STUB_TEXT = `
-Продаю Volkswagen Passat B8 2019 года выпуска.
-VIN: WVWZZZ3CZWE123456
-Пробег 85000 км, двигатель 2.0 TDI, 150 л.с.
-Коробка автомат DSG, передний привод.
-Цвет серый металлик, седан, 4 двери, 5 мест.
-Цена 15500 евро, возможен торг.
-Состояние отличное, один владелец.
-`;
-
 // ==========================================
 // 2. КОМПОНЕНТЫ ДЛЯ РАЗНЫХ ТИПОВ ПОЛЕЙ
 // ==========================================
@@ -219,24 +208,43 @@ const FeatureField: FC<{
 // ==========================================
 const NineNineNineSettings: FC = () => {
   const { register, setValue, watch } = useSettings();
+  const { value: posts } = useIntegration();
   const [featuresGroups, setFeaturesGroups] = useState<FeatureGroup[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isParsed, setIsParsed] = useState(false);
+
+  // Получаем текст из всех постов пользователя
+  const getPostsText = useCallback(() => {
+    const allPosts = posts || [];
+    return allPosts
+      .map((post: any) => post?.content || '')
+      .filter(Boolean)
+      .join('\n\n');
+  }, [posts]);
 
   // Загрузка конфигурации полей из Python API
-  const loadPostConfig = useCallback(async () => {
+  const loadPostConfig = useCallback(async (text?: string) => {
+    const textToSend = text ?? getPostsText();
+    
+    if (!textToSend.trim()) {
+      setError('Введите текст объявления в редакторе справа');
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     
     try {
       console.log('[Frontend] Fetching post-config from Python API...');
+      console.log('[Frontend] Text to parse:', textToSend.substring(0, 100) + '...');
       
       const response = await fetch('http://localhost:8000/api/post-config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text: STUB_TEXT }),
+        body: JSON.stringify({ text: textToSend }),
       });
 
       if (!response.ok) {
@@ -247,6 +255,7 @@ const NineNineNineSettings: FC = () => {
       console.log('[Frontend] Received post-config:', data);
       
       setFeaturesGroups(data.features_groups || []);
+      setIsParsed(true);
       
       // Устанавливаем значения из AI парсинга в форму
       data.features_groups?.forEach((group) => {
@@ -268,11 +277,9 @@ const NineNineNineSettings: FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [setValue]);
+  }, [setValue, getPostsText]);
 
   useEffect(() => {
-    loadPostConfig();
-    
     // Устанавливаем дефолты для статических полей
     if (!watch('currency')) setValue('currency', 'eur');
     if (!watch('regionId')) setValue('regionId', '12');
@@ -306,6 +313,9 @@ const NineNineNineSettings: FC = () => {
     );
   };
 
+  // Текст из постов для отображения
+  const currentText = getPostsText();
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-white">
@@ -316,13 +326,57 @@ const NineNineNineSettings: FC = () => {
     );
   }
 
-  if (error) {
+  // Если ещё не парсили — показываем кнопку запуска
+  if (!isParsed && featuresGroups.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-white gap-4">
+        <div className="text-5xl mb-2">🤖</div>
+        <h3 className="text-lg font-semibold">AI Парсер объявлений</h3>
+        <p className="text-sm text-gray-400 text-center max-w-md">
+          Введите текст объявления в редакторе справа, затем нажмите кнопку ниже для автоматического заполнения полей
+        </p>
+        
+        {currentText ? (
+          <div className="w-full bg-gray-800/50 rounded p-3 max-h-32 overflow-y-auto">
+            <p className="text-xs text-gray-500 mb-1">Текст для парсинга:</p>
+            <p className="text-sm text-gray-300 whitespace-pre-wrap line-clamp-4">
+              {currentText}
+            </p>
+          </div>
+        ) : (
+          <div className="w-full bg-yellow-900/30 border border-yellow-700/50 rounded p-3">
+            <p className="text-sm text-yellow-400 text-center">
+              ⚠️ Сначала введите текст объявления справа
+            </p>
+          </div>
+        )}
+        
+        <button
+          onClick={() => loadPostConfig()}
+          disabled={!currentText}
+          className={`px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 ${
+            currentText 
+              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+              : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+          }`}
+        >
+          🚀 Запустить AI парсинг
+        </button>
+        
+        {error && (
+          <p className="text-red-400 text-sm">{error}</p>
+        )}
+      </div>
+    );
+  }
+
+  if (error && featuresGroups.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-white">
         <div className="text-red-400 text-4xl mb-4">⚠️</div>
         <p className="text-red-400">{error}</p>
         <button
-          onClick={loadPostConfig}
+          onClick={() => loadPostConfig()}
           className="mt-4 px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition"
         >
           Повторить
@@ -376,9 +430,14 @@ const NineNineNineSettings: FC = () => {
 
       {/* Кнопка перезагрузки AI */}
       <button
-        onClick={loadPostConfig}
+        onClick={() => loadPostConfig()}
         type="button"
-        className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-300 transition flex items-center justify-center gap-2"
+        disabled={!currentText}
+        className={`w-full py-2 px-4 rounded text-sm transition flex items-center justify-center gap-2 ${
+          currentText
+            ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+            : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+        }`}
       >
         🔄 Перезапустить AI парсинг
       </button>
