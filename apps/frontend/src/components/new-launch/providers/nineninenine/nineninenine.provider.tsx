@@ -7,7 +7,6 @@ import {
 } from '@gitroom/frontend/components/new-launch/providers/high.order.provider';
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
 import { useIntegration } from '@gitroom/frontend/components/launches/helpers/use.integration';
-import { Input } from '@gitroom/react/form/input';
 
 // ==========================================
 // 1. ТИПЫ И ИНТЕРФЕЙСЫ
@@ -68,9 +67,7 @@ VIN: WVWZZZ3CZWE123456
 const DropdownField: FC<{
   feature: Feature;
   register: any;
-  value?: string;
-  onChange?: (value: string) => void;
-}> = ({ feature, register, value, onChange }) => {
+}> = ({ feature, register }) => {
   const fieldName = `feature_${feature.id}`;
   
   return (
@@ -80,8 +77,6 @@ const DropdownField: FC<{
       </label>
       <select
         {...register(fieldName)}
-        value={value}
-        onChange={(e) => onChange?.(e.target.value)}
         className="w-full bg-input border border-gray-700 rounded h-10 px-2 text-sm focus:outline-none"
       >
         <option value="">Выберите...</option>
@@ -202,9 +197,7 @@ const TextareaField: FC<{
 const FeatureField: FC<{
   feature: Feature;
   register: any;
-  watch: any;
-  setValue: any;
-}> = ({ feature, register, watch, setValue }) => {
+}> = ({ feature, register }) => {
   switch (feature.type) {
     case 'drop_down_options':
       return <DropdownField feature={feature} register={register} />;
@@ -287,7 +280,6 @@ const NineNineNineSettings: FC = () => {
 
   // Рендер группы полей
   const renderFeatureGroup = (group: FeatureGroup, index: number) => {
-    // Определяем сетку в зависимости от количества полей
     const gridClass = group.features.length === 1 
       ? 'grid-cols-1' 
       : 'grid-cols-1 md:grid-cols-2';
@@ -307,8 +299,6 @@ const NineNineNineSettings: FC = () => {
               key={feature.id}
               feature={feature}
               register={register}
-              watch={watch}
-              setValue={setValue}
             />
           ))}
         </div>
@@ -343,7 +333,6 @@ const NineNineNineSettings: FC = () => {
 
   return (
     <div className="flex flex-col gap-5 text-white pb-10">
-      
       {/* Динамические группы из API */}
       {featuresGroups.map((group, index) => renderFeatureGroup(group, index))}
 
@@ -399,132 +388,222 @@ const NineNineNineSettings: FC = () => {
 
 
 // ==========================================
-// 4. КОМПОНЕНТ ПРЕВЬЮ (БОЛЬШАЯ КАРТОЧКА СПРАВА)
+// 4. КОМПОНЕНТ ПРЕВЬЮ (CustomPreviewComponent)
 // ==========================================
-const NineNineNinePreview: FC = () => {
-  const settings = useSettings();
-  const { value } = useIntegration();
+const NineNineNinePreview: FC<{ maximumCharacters?: number }> = () => {
+  const { watch } = useSettings();
+  const { value: posts } = useIntegration();
+  const [featuresGroups, setFeaturesGroups] = useState<FeatureGroup[]>([]);
+
+  // Загружаем структуру полей для получения options и labels
+  useEffect(() => {
+    fetch('http://localhost:8000/api/post-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: '' }), // Пустой текст — только структура
+    })
+      .then((res) => res.json())
+      .then((data) => setFeaturesGroups(data.features_groups || []))
+      .catch(() => {});
+  }, []);
 
   // Получаем значения из динамических полей
   const getFeatureValue = (featureId: string) => {
-    return settings.watch(`feature_${featureId}`) || '';
+    return watch(`feature_${featureId}`) || '';
+  };
+
+  // Находим feature по ID
+  const findFeature = (featureId: string): Feature | undefined => {
+    for (const group of featuresGroups) {
+      const feature = group.features.find((f) => f.id === featureId);
+      if (feature) return feature;
+    }
+    return undefined;
+  };
+
+  // Получаем label из options по ID
+  const getOptionLabel = (featureId: string) => {
+    const valueId = getFeatureValue(featureId);
+    if (!valueId) return '';
+    
+    const feature = findFeature(featureId);
+    if (!feature?.options) return valueId;
+    
+    const option = feature.options.find((opt) => opt.id === valueId);
+    return option?.title || valueId;
   };
 
   // Основные данные
-  const title = getFeatureValue('12'); // Заголовок объявления
-  const price = getFeatureValue('2'); // Цена
-  const currency = settings.watch('currency') || 'EUR';
-  const regionName = REGIONS.find((r) => r.id === settings.watch('regionId'))?.name || 'Молдова';
-  const negotiable = settings.watch('negotiable');
+  const title = getFeatureValue('12');
+  const price = getFeatureValue('2');
+  const currency = watch('currency') || 'EUR';
+  const regionName = REGIONS.find((r) => r.id === watch('regionId'))?.name || 'Молдова';
+  const negotiable = watch('negotiable');
 
-  // Авто данные
-  const year = getFeatureValue('19'); // Год выпуска
-  const displayTitle = title || `Автомобиль ${year}`.trim() || 'Новое объявление';
+  // Авто данные для заголовка
+  const year = getFeatureValue('19');
+  const makeName = getOptionLabel('20');
+  const modelName = getOptionLabel('21');
+  const displayTitle = title || `${makeName} ${modelName} ${year}`.trim() || 'Новое объявление';
 
-  // Контент
-  const rawContent = value?.[0]?.content || '';
-  const description = getFeatureValue('13') || rawContent.replace(/<[^>]+>/g, '\n');
-  const images = value?.[0]?.image || [];
+  // Описание берём ТОЛЬКО из настроек (feature_13)
+  const description = getFeatureValue('13');
 
-  // Переключение картинок
-  const [activeImgIndex, setActiveImgIndex] = useState(0);
-  const activeImage = images[activeImgIndex]?.path;
+  // Контент из постов
+  const allPosts = posts || [];
 
-  // Сборка характеристик для отображения
-  const specs = [
-    { label: 'Год выпуска', value: getFeatureValue('19') },
-    { label: 'Пробег', value: getFeatureValue('104') ? `${getFeatureValue('104')} км` : '' },
-    { label: 'VIN-код', value: getFeatureValue('2512') },
-    { label: 'Мощность', value: getFeatureValue('107') ? `${getFeatureValue('107')} л.с.` : '' },
-  ].filter((s) => s.value);
+  // Собираем все характеристики для отображения
+  const specsConfig = [
+    { id: '19', label: 'Год', unit: '' },
+    { id: '104', label: 'Пробег', unit: 'км' },
+    { id: '2512', label: 'VIN', unit: '' },
+    { id: '2553', label: 'Двигатель', isDropdown: true },
+    { id: '107', label: 'Мощность', unit: 'л.с.' },
+    { id: '151', label: 'Топливо', isDropdown: true },
+    { id: '101', label: 'КПП', isDropdown: true },
+    { id: '108', label: 'Привод', isDropdown: true },
+    { id: '102', label: 'Кузов', isDropdown: true },
+    { id: '17', label: 'Цвет', isDropdown: true },
+    { id: '846', label: 'Мест', isDropdown: true },
+    { id: '851', label: 'Дверей', isDropdown: true },
+    { id: '593', label: 'Состояние', isDropdown: true },
+    { id: '1761', label: 'Наличие', isDropdown: true },
+    { id: '775', label: 'Регистрация', isDropdown: true },
+    { id: '1763', label: 'Происхождение', isDropdown: true },
+    { id: '2513', label: 'Запас хода', unit: 'км' },
+    { id: '2554', label: 'Батарея', unit: 'kWh' },
+    { id: '2555', label: 'Быстрая зарядка', unit: 'мин' },
+  ];
+
+  const specs = specsConfig
+    .map((spec) => {
+      let value = spec.isDropdown ? getOptionLabel(spec.id) : getFeatureValue(spec.id);
+      
+      if (!value) return null;
+      
+      // Добавляем единицы измерения
+      if (spec.unit && value) {
+        value = `${value} ${spec.unit}`;
+      }
+      
+      return { label: spec.label, value };
+    })
+    .filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <div className="w-full bg-white rounded-md overflow-hidden border border-gray-300 font-sans text-left shadow-lg select-none text-black">
-      {/* Шапка объявления */}
-      <div className="p-4 border-b border-gray-100 bg-gray-50">
-        <h1 className="text-xl font-bold text-[#0079c2] mb-1 leading-snug">
-          {displayTitle}
-        </h1>
-        <div className="flex justify-between items-end">
-          <div className="text-2xl font-bold text-black flex items-baseline gap-2">
-            {price || 'Договорная'}{' '}
-            <span className="text-sm font-normal text-gray-500 uppercase">{currency}</span>
-            {negotiable && (
-              <span className="text-xs text-green-600 font-normal border border-green-200 px-1 rounded">
-                Торг
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-col gap-4">
+      {(allPosts.length > 0 ? allPosts : [{ content: '', image: [] }]).map((post: any, postIndex: number) => {
+        const postImages = post?.image || [];
+        const postActiveImage = postImages[0]?.path;
 
-      {/* Галерея */}
-      <div className="bg-gray-200 aspect-[4/3] relative flex items-center justify-center overflow-hidden">
-        {activeImage ? (
-          <img src={activeImage} alt="Main" className="w-full h-full object-contain bg-black" />
-        ) : (
-          <div className="flex flex-col items-center text-gray-400">
-            <span className="text-4xl mb-2">📷</span>
-            <span className="text-sm">Нет фото</span>
-          </div>
-        )}
+        return (
+          <div key={postIndex} className="w-full bg-white rounded-lg overflow-hidden shadow-md text-black">
+            {/* Галерея */}
+            <div className="relative aspect-[16/10] bg-gray-100">
+              {postActiveImage ? (
+                <img 
+                  src={postActiveImage} 
+                  alt={displayTitle}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                  <svg className="w-16 h-16 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-sm">Нет изображений</span>
+                </div>
+              )}
+              
+              {postImages.length > 1 && (
+                <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                  📷 {postImages.length}
+                </div>
+              )}
+              
+              {negotiable && (
+                <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded font-medium">
+                  Торг
+                </div>
+              )}
 
-        {images.length > 1 && (
-          <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
-            📷 {activeImgIndex + 1} / {images.length}
-          </div>
-        )}
-      </div>
-
-      {/* Миниатюры */}
-      {images.length > 1 && (
-        <div className="flex gap-1 p-1 overflow-x-auto bg-gray-100">
-          {images.map((img: any, idx: number) => (
-            <div
-              key={idx}
-              onClick={() => setActiveImgIndex(idx)}
-              className={`w-16 h-12 flex-shrink-0 cursor-pointer border-2 ${
-                activeImgIndex === idx ? 'border-[#ff6600]' : 'border-transparent'
-              }`}
-            >
-              <img src={img.path} className="w-full h-full object-cover" />
+              {allPosts.length > 1 && (
+                <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded font-medium">
+                  #{postIndex + 1}
+                </div>
+              )}
             </div>
-          ))}
-        </div>
-      )}
 
-      {/* Таблица характеристик */}
-      {specs.length > 0 && (
-        <div className="p-4 bg-white">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            {specs.map((spec, i) => (
-              <div key={i} className="flex justify-between border-b border-gray-100 pb-1">
-                <span className="text-gray-500">{spec.label}</span>
-                <span className="text-black font-medium text-right">{spec.value}</span>
+            {/* Миниатюры */}
+            {postImages.length > 1 && (
+              <div className="flex gap-1 p-2 bg-gray-50 overflow-x-auto">
+                {postImages.slice(0, 6).map((img: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="w-14 h-10 flex-shrink-0 rounded overflow-hidden border border-gray-200"
+                  >
+                    <img src={img.path} className="w-full h-full object-cover" alt="" />
+                  </div>
+                ))}
+                {postImages.length > 6 && (
+                  <div className="w-14 h-10 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
+                    +{postImages.length - 6}
+                  </div>
+                )}
               </div>
-            ))}
+            )}
+
+            {/* Контент */}
+            <div className="p-4">
+              {/* Заголовок и цена */}
+              <div className="flex justify-between items-start gap-3 mb-3">
+                <h3 className="text-lg font-semibold text-gray-900 leading-tight flex-1">
+                  {displayTitle}
+                </h3>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-xl font-bold text-blue-600">
+                    {price || '—'} <span className="text-sm font-normal text-gray-500">{currency.toUpperCase()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Характеристики */}
+              {specs.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {specs.map((spec, i) => (
+                    <span 
+                      key={i} 
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs text-gray-600"
+                    >
+                      <span className="font-medium">{spec.label}:</span>
+                      <span>{spec.value}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Описание */}
+              <p className="text-sm text-gray-600 line-clamp-3 mb-3">
+                {description || 'Описание объявления...'}
+              </p>
+
+              {/* Футер */}
+              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                <div className="flex items-center gap-1 text-xs text-gray-500">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span>{regionName}</span>
+                </div>
+                <div className="text-xs text-gray-400">
+                  999.md
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Описание */}
-      <div className="p-4 pt-2">
-        <h3 className="font-bold text-gray-800 mb-2 text-sm uppercase">Описание</h3>
-        <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed break-words">
-          {description || 'Добавьте описание товара в редакторе...'}
-        </div>
-      </div>
-
-      {/* Футер */}
-      <div className="p-4 bg-[#f2f9ff] border-t border-blue-100 mt-2 flex justify-between items-center">
-        <div>
-          <div className="text-xs text-gray-500">Регион</div>
-          <div className="text-sm font-bold text-[#0079c2]">{regionName}</div>
-        </div>
-        <div className="text-[#0079c2] font-bold text-lg flex items-center gap-2">
-          <span>📞 +373 79 000 000</span>
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
 };
