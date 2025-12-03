@@ -37,6 +37,72 @@ interface PostConfigResponse {
   features_groups: FeatureGroup[];
 }
 
+// ==========================================
+// ГЛОБАЛЬНОЕ СОСТОЯНИЕ ПАРСИНГА
+// ==========================================
+const globalParseState = {
+  isParsed: false,
+  featuresGroups: [] as FeatureGroup[],
+  lastParsedText: '',
+};
+
+// Функция парсинга текста через API
+const parseTextWithAI = async (text: string): Promise<PostConfigResponse> => {
+  const response = await fetch('http://localhost:8000/api/post-config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  return response.json();
+};
+
+// ==========================================
+// ФУНКЦИЯ ВАЛИДАЦИИ ПЕРЕД ОТПРАВКОЙ
+// ==========================================
+const checkNineNineNineValidity = async (
+  _media: Array<Array<{ path: string; thumbnail?: string }>>,
+  settings: any,
+  _additionalSettings: any
+): Promise<string | true> => {
+  // 1. Проверяем, был ли парсинг
+  if (!globalParseState.isParsed) {
+    return 'Сначала запустите AI парсинг объявления';
+  }
+
+  // 2. Проверяем обязательные динамические поля
+  const missingFields: string[] = [];
+
+  globalParseState.featuresGroups.forEach((group) => {
+    group.features.forEach((feature) => {
+      if (feature.required) {
+        const fieldName = `feature_${feature.id}`;
+        const value = settings[fieldName];
+        if (!value || value === '') {
+          missingFields.push(feature.title);
+        }
+      }
+    });
+  });
+
+  if (missingFields.length > 0) {
+    const displayFields = missingFields.slice(0, 3).join(', ');
+    const more = missingFields.length > 3 ? ` и ещё ${missingFields.length - 3}` : '';
+    return `Заполните обязательные поля: ${displayFields}${more}`;
+  }
+
+  // 3. Проверяем статические обязательные поля
+  if (!settings.regionId) {
+    return 'Выберите регион';
+  }
+
+  return true;
+};
+
 // Статические данные для полей которые не приходят из API
 const REGIONS = [
   { id: '12', name: 'Кишинев' },
@@ -223,6 +289,23 @@ const NineNineNineSettings: FC = () => {
       .join('\n\n');
   }, [posts]);
 
+  // Синхронизируем локальное состояние с глобальным
+  useEffect(() => {
+    globalParseState.isParsed = isParsed;
+    globalParseState.featuresGroups = featuresGroups;
+    if (isParsed) {
+      globalParseState.lastParsedText = getPostsText();
+    }
+  }, [isParsed, featuresGroups, getPostsText]);
+
+  // Восстанавливаем состояние из глобального при монтировании
+  useEffect(() => {
+    if (globalParseState.isParsed && globalParseState.featuresGroups.length > 0) {
+      setFeaturesGroups(globalParseState.featuresGroups);
+      setIsParsed(true);
+    }
+  }, []);
+
   // Загрузка конфигурации полей из Python API
   const loadPostConfig = useCallback(async (text?: string) => {
     const textToSend = text ?? getPostsText();
@@ -239,23 +322,16 @@ const NineNineNineSettings: FC = () => {
       console.log('[Frontend] Fetching post-config from Python API...');
       console.log('[Frontend] Text to parse:', textToSend.substring(0, 100) + '...');
       
-      const response = await fetch('http://localhost:8000/api/post-config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text: textToSend }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data: PostConfigResponse = await response.json();
+      const data = await parseTextWithAI(textToSend);
       console.log('[Frontend] Received post-config:', data);
       
       setFeaturesGroups(data.features_groups || []);
       setIsParsed(true);
+      
+      // Обновляем глобальное состояние
+      globalParseState.featuresGroups = data.features_groups || [];
+      globalParseState.isParsed = true;
+      globalParseState.lastParsedText = textToSend;
       
       // Устанавливаем значения из AI парсинга в форму
       data.features_groups?.forEach((group) => {
@@ -673,6 +749,6 @@ export default withProvider({
   SettingsComponent: NineNineNineSettings,
   CustomPreviewComponent: NineNineNinePreview,
   dto: undefined,
-  checkValidity: undefined,
+  checkValidity: checkNineNineNineValidity,
   maximumCharacters: 5000,
 });
