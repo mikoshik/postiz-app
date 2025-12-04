@@ -371,12 +371,27 @@ async def create_advert(request: CreateAdvertRequest) -> Dict[str, Any]:
                 result = response.json()
                 print(f"✅ Успешно! Response: {json.dumps(result, indent=2, ensure_ascii=False)}")
                 
-                advert_id = result.get("id") or result.get("advert_id")
-                advert_url = result.get("url") or f"https://999.md/ru/{advert_id}"
+                # API 999.md возвращает: { "advert": { "id": "102895743" } }
+                advert_data = result.get("advert", {})
+                advert_id = (
+                    advert_data.get("id") or 
+                    result.get("id") or 
+                    result.get("advert_id")
+                )
+                
+                # Формируем URL объявления
+                advert_url = (
+                    advert_data.get("url") or 
+                    result.get("url") or 
+                    f"https://999.md/ru/{advert_id}" if advert_id else None
+                )
+                
+                print(f"📋 Advert ID: {advert_id}")
+                print(f"🔗 Advert URL: {advert_url}")
                 
                 return {
                     "success": True,
-                    "advert_id": str(advert_id),
+                    "advert_id": str(advert_id) if advert_id else None,
                     "url": advert_url,
                     "message": "Объявление успешно создано",
                     "uploaded_images": len(uploaded_image_ids),
