@@ -594,12 +594,6 @@
                 {
                     "id": "775",
                     "title": "Регистрация",
-                    "default_value": {                        
-                        "options" : {
-                            "id": "18592",
-                            "title": "Республика Молдова"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -631,12 +625,6 @@
                     "id": "593",
                     "title": "Состояние",
                     "depends_on": null,
-                    "default_value": {                        
-                        "options" : {
-                            "id": "18668",
-                            "title": "С пробегом"
-                        }
-                    },
                     "required": true,
                     "options": [
                         {
@@ -658,12 +646,6 @@
                 {
                     "id": "1761",
                     "title": "Наличие",
-                    "default_value": {                        
-                        "options" : {
-                            "id": "29670",
-                            "title": "На месте"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -686,13 +668,6 @@
                 {
                     "id": "1763",
                     "title": "Происхождение автомобиля",
-                    
-                    "default_value": {                        
-                         "options" : {
-                            "id": "33044",
-                            "title": "Другое"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -727,12 +702,6 @@
                 {
                     "id": "795",
                     "title": "Автор объявления",
-                    "default_value": {                        
-                        "options" : {
-                            "id": "23241",
-                            "title": "Автодилер"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -755,7 +724,7 @@
                 },
                 {
                     "id": "13",
-                    "title": "Описание",
+                    "title": "body",
                     "depends_on": null,
                     "required": false,
                     "options": null,
@@ -774,8 +743,194 @@
             ]
         },
         {
-            "title": "Цена",
+            "title": "Цена и регион",
             "features": [
+                {
+                    "id": "7",
+                    "title": "Регион",
+                    "depends_on": null,
+                    "required": true,
+                    "options": [
+                        {
+                            "id": "12912",
+                            "title": "Бельцы мун."
+                        },
+                        {
+                            "id": "12882",
+                            "title": "Бендеры мун."
+                        },
+                        {
+                            "id": "12901",
+                            "title": "Бессарабка"
+                        },
+                        {
+                            "id": "12898",
+                            "title": "Бричаны"
+                        },
+                        {
+                            "id": "12878",
+                            "title": "Вулканешты"
+                        },
+                        {
+                            "id": "12904",
+                            "title": "Глодяны"
+                        },
+                        {
+                            "id": "12873",
+                            "title": "Григориополь"
+                        },
+                        {
+                            "id": "17475",
+                            "title": "Днестровск"
+                        },
+                        {
+                            "id": "12896",
+                            "title": "Дондюшаны"
+                        },
+                        {
+                            "id": "12893",
+                            "title": "Дрокия"
+                        },
+                        {
+                            "id": "12879",
+                            "title": "Дубоссары"
+                        },
+                        {
+                            "id": "12895",
+                            "title": "Единцы"
+                        },
+                        {
+                            "id": "12908",
+                            "title": "Кагул"
+                        },
+                        {
+                            "id": "12907",
+                            "title": "Калараш"
+                        },
+                        {
+                            "id": "12874",
+                            "title": "Каменка"
+                        },
+                        {
+                            "id": "12890",
+                            "title": "Кантемир"
+                        },
+                        {
+                            "id": "12903",
+                            "title": "Каушаны"
+                        },
+                        {
+                            "id": "12900",
+                            "title": "Кишинёв мун."
+                        },
+                        {
+                            "id": "12875",
+                            "title": "Комрат"
+                        },
+                        {
+                            "id": "12888",
+                            "title": "Криуляны"
+                        },
+                        {
+                            "id": "12881",
+                            "title": "Леова"
+                        },
+                        {
+                            "id": "12877",
+                            "title": "Ниспорены"
+                        },
+                        {
+                            "id": "12905",
+                            "title": "Новые Анены"
+                        },
+                        {
+                            "id": "12902",
+                            "title": "Окница"
+                        },
+                        {
+                            "id": "12909",
+                            "title": "Оргеев"
+                        },
+                        {
+                            "id": "12891",
+                            "title": "Резина"
+                        },
+                        {
+                            "id": "12883",
+                            "title": "Рыбница"
+                        },
+                        {
+                            "id": "12897",
+                            "title": "Рышканы"
+                        },
+                        {
+                            "id": "12884",
+                            "title": "Слободзея"
+                        },
+                        {
+                            "id": "12899",
+                            "title": "Сороки"
+                        },
+                        {
+                            "id": "12910",
+                            "title": "Страшены"
+                        },
+                        {
+                            "id": "12906",
+                            "title": "Сынжерей"
+                        },
+                        {
+                            "id": "12894",
+                            "title": "Тараклия"
+                        },
+                        {
+                            "id": "12892",
+                            "title": "Теленешты"
+                        },
+                        {
+                            "id": "12885",
+                            "title": "Тирасполь мун."
+                        },
+                        {
+                            "id": "12870",
+                            "title": "Унгены"
+                        },
+                        {
+                            "id": "12887",
+                            "title": "Фалешты"
+                        },
+                        {
+                            "id": "12911",
+                            "title": "Флорешты"
+                        },
+                        {
+                            "id": "12876",
+                            "title": "Хынчешты"
+                        },
+                        {
+                            "id": "12871",
+                            "title": "Чадыр-Лунга"
+                        },
+                        {
+                            "id": "12889",
+                            "title": "Чимишлия"
+                        },
+                        {
+                            "id": "12880",
+                            "title": "Шолданешты"
+                        },
+                        {
+                            "id": "12872",
+                            "title": "Штефан-Водэ"
+                        },
+                        {
+                            "id": "12886",
+                            "title": "Яловены"
+                        }
+                    ],
+                    "units": null,
+                    "type": "drop_down_options"
+                },
                 {
                     "id": "2",
                     "title": "Цена",
@@ -806,12 +961,6 @@
                 {
                     "id": "1196",
                     "title": "Руль",
-                    "default_value": {                        
-                        "options" : {
-                            "id": "21978",
-                            "title": "Правый"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -830,12 +979,6 @@
                 {
                     "id": "846",
                     "title": "Количество мест",
-                    "default_value": {                        
-                        "options" : {
-                            "id": "19007",
-                            "title": "3-4"
-                        }
-                    },
                     "depends_on": null,
                     "required": true,
                     "options": [
@@ -874,6 +1017,14 @@
                         {
                             "id": "24583",
                             "title": "9"
+                        },
+                        {
+                            "id": "43783",
+                            "title": "10"
+                        },
+                        {
+                            "id": "43782",
+                            "title": "11"
                         }
                     ],
                     "units": null,
@@ -944,7 +1095,6 @@
                 {
                     "id": "851",
                     "title": "Количество дверей",
-                    
                     "depends_on": null,
                     "required": false,
                     "options": [
@@ -1445,6 +1595,503 @@
                         "min"
                     ],
                     "type": "textbox_numeric_measurement"
+                }
+            ]
+        },
+        {
+            "title": "Безопасность",
+            "features": [
+                {
+                    "id": "109",
+                    "title": "Антиблокировочная тормозная система (ABS)",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "115",
+                    "title": "Шторки безопасности",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "110",
+                    "title": "Антипробуксовочная система (TCS, ASR, TRC)",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "114",
+                    "title": "Боковые подушки безопасности",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "116",
+                    "title": "Датчик парковки",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "1639",
+                    "title": "Система кругового обзора",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "113",
+                    "title": "Подушка безопасности пассажира",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "111",
+                    "title": "Система стабилизации (ESP, DSC, VDC, ESC)",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "112",
+                    "title": "Подушка безопасности водителя",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "119",
+                    "title": "Омыватель фар",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "118",
+                    "title": "Датчик света",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "120",
+                    "title": "Противоугонное устройство",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "127",
+                    "title": "Летние шины",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "126",
+                    "title": "Легкосплавные колесные диски",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "121",
+                    "title": "Противоугонная сигнализация",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "124",
+                    "title": "Многофункциональный руль",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "125",
+                    "title": "Стальные колесные диски",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "128",
+                    "title": "Зимние шины",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "123",
+                    "title": "Противотуманные фары",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "129",
+                    "title": "Всесезонные шины",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "117",
+                    "title": "Датчик дождя",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "1638",
+                    "title": "Камера заднего вида",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "122",
+                    "title": "Ксеноновые фары",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "1757",
+                    "title": "Светодиодные фары",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "1758",
+                    "title": "Лазерные фары",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "1766",
+                    "title": "Фаркоп",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "2201",
+                    "title": "Крепления для детских сидений (Isofix)",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "2200",
+                    "title": "Крепление для якорного ремня (Top Tether)",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                }
+            ]
+        },
+        {
+            "title": "Комфорт",
+            "features": [
+                {
+                    "id": "130",
+                    "title": "Кондиционер",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "131",
+                    "title": "Климат-контроль",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "132",
+                    "title": "Усилитель руля",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "133",
+                    "title": "Регулируемая по высоте рулевая колонка",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "134",
+                    "title": "Регулируемая по вылету рулевая колонка",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "135",
+                    "title": "Люк",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "2523",
+                    "title": "Панорамная крыша",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "136",
+                    "title": "Электростеклоподъемники",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "137",
+                    "title": "Электрорегулировка боковых зеркал",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "138",
+                    "title": "Электрорегулировка водительского сиденья",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "139",
+                    "title": "Электрорегулировка пассажирского сиденья",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "140",
+                    "title": "Подогрев передних сидений",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "141",
+                    "title": "Подогрев боковых зеркал",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "142",
+                    "title": "Центральный замок",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "143",
+                    "title": "Круиз-контроль",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "144",
+                    "title": "Аудиосистема, Bluetooth",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "145",
+                    "title": "Кожаный салон",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "147",
+                    "title": "Обивка салона ткань",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "2522",
+                    "title": "Вентиляция сидений",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "148",
+                    "title": "Бортовой компьютер",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "149",
+                    "title": "Навигационная система, TV, DVD",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                },
+                {
+                    "id": "150",
+                    "title": "Тонированные стекла",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "check_box"
+                }
+            ]
+        },
+        {
+            "title": "Медиа",
+            "features": [
+                {
+                    "id": "14",
+                    "title": "Фото",
+                    "depends_on": null,
+                    "required": true,
+                    "options": null,
+                    "units": null,
+                    "type": "upload_images"
+                },
+                {
+                    "id": "15",
+                    "title": "Видео",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "upload_videos"
+                }
+            ]
+        },
+        {
+            "title": "Контакты",
+            "features": [
+                {
+                    "id": "16",
+                    "title": "Контакты",
+                    "depends_on": null,
+                    "required": false,
+                    "options": null,
+                    "units": null,
+                    "type": "contacts"
                 }
             ]
         }
