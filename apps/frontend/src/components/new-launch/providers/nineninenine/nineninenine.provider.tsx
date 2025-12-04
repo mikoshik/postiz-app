@@ -69,8 +69,14 @@ const checkNineNineNineValidity = async (
   settings: any,
   _additionalSettings: any
 ): Promise<string | true> => {
+  console.log('[checkValidity] Called!');
+  console.log('[checkValidity] globalParseState.isParsed:', globalParseState.isParsed);
+  console.log('[checkValidity] globalParseState.featuresGroups:', globalParseState.featuresGroups.length);
+  console.log('[checkValidity] settings:', settings);
+
   // 1. Проверяем, был ли парсинг
   if (!globalParseState.isParsed) {
+    console.log('[checkValidity] BLOCKED: isParsed is false');
     return 'Сначала запустите AI парсинг объявления';
   }
 
@@ -92,14 +98,17 @@ const checkNineNineNineValidity = async (
   if (missingFields.length > 0) {
     const displayFields = missingFields.slice(0, 3).join(', ');
     const more = missingFields.length > 3 ? ` и ещё ${missingFields.length - 3}` : '';
+    console.log('[checkValidity] BLOCKED: Missing fields:', missingFields);
     return `Заполните обязательные поля: ${displayFields}${more}`;
   }
 
   // 3. Проверяем статические обязательные поля
   if (!settings.regionId) {
+    console.log('[checkValidity] BLOCKED: No regionId');
     return 'Выберите регион';
   }
 
+  console.log('[checkValidity] PASSED! All checks OK');
   return true;
 };
 
@@ -358,7 +367,7 @@ const NineNineNineSettings: FC = () => {
   useEffect(() => {
     // Устанавливаем дефолты для статических полей
     if (!watch('currency')) setValue('currency', 'eur');
-    if (!watch('regionId')) setValue('regionId', '12');
+    if (!watch('regionId')) setValue('regionId', '19');
   }, []);
 
   // Рендер группы полей
