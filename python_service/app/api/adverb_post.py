@@ -1,7 +1,8 @@
 """
 API роутер для создания объявлений на 999.md.
 """
-import httpx , json
+import httpx, json
+import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -23,6 +24,9 @@ OFFER_TYPE = "776"            # Продам
 # Feature ID для изображений
 IMAGES_FEATURE_ID = "14"
 
+# Поля которые могут вызвать ошибку валидации (пропускаем если невалидные)
+OPTIONAL_VALIDATION_FIELDS = ["2512"]  # VIN-код
+
 
 class FeatureValue(BaseModel):
     """Значение характеристики."""
@@ -42,23 +46,76 @@ class CreateAdvertRequest(BaseModel):
     offer_type: Optional[str] = OFFER_TYPE
 
 
-def format_feature_value(feat: FeatureValue) -> Dict[str, Any]:
+def validate_vin(vin: str) -> bool:
+    """
+    Проверяет валидность VIN-кода.
+    VIN должен быть ровно 17 символов, содержать только буквы и цифры,
+    без I, O, Q (они запрещены в VIN).
+    """
+    if not vin:
+        return False
+    
+    # Убираем пробелы
+    vin = vin.strip().upper()
+    
+    # Проверяем длину
+    if len(vin) != 17:
+        print(f"  ⚠️ VIN неверной длины: {len(vin)} (должно быть 17)")
+        return False
+    
+    # Проверяем символы (только буквы A-Z кроме I,O,Q и цифры 0-9)
+    valid_pattern = r'^[A-HJ-NPR-Z0-9]{17}$'
+    if not re.match(valid_pattern, vin):
+        print(f"  ⚠️ VIN содержит недопустимые символы")
+        return False
+    
+    return True
+
+
+def format_phone_number(phone: str) -> str:
+    """
+    Форматирует номер телефона в формат 373XXXXXXXX.
+    """
+    if not phone:
+        return ""
+    
+    # Убираем все кроме цифр
+    digits = re.sub(r'\D', '', phone)
+    
+    # Если начинается с 0 — это молдавский номер без кода страны
+    if digits.startswith('0') and len(digits) == 9:
+        digits = '373' + digits[1:]
+    
+    # Если 8 цифр — добавляем код Молдовы
+    elif len(digits) == 8:
+        digits = '373' + digits
+    
+    # Если начинается с 373 — оставляем как есть
+    elif digits.startswith('373'):
+        pass
+    
+    # Иначе добавляем 373
+    elif len(digits) == 9 and not digits.startswith('373'):
+        digits = '373' + digits[1:] if digits.startswith('0') else '373' + digits
+    
+    return digits
+
+
+def format_feature_value(feat: FeatureValue) -> Optional[Dict[str, Any]]:
     """
     Форматирует значение характеристики для 999.md API.
-    
-    Некоторые поля требуют специального формата:
-    - Цена (id=2): {"id": "2", "value": 16900, "unit": "eur"}
-    - Пробег (id=104): {"id": "104", "value": 73000, "unit": "km"}
-    - Телефон (id=16): {"id": "16", "value": ["37378000000"]}
-    - Заголовок (id=12): {"id": "12", "value": {"ro": "...", "ru": "..."}}
-    - Описание (id=13): {"id": "13", "value": {"ro": "...", "ru": "..."}}
-    - Чекбоксы: {"id": "908", "value": true}
+    Возвращает None если поле невалидно и должно быть пропущено.
     """
     feature_id = feat.id
     value = feat.value
     unit = feat.unit
-        
-
+    
+    # VIN-код — проверяем валидность
+    if feature_id == "2512":
+        if not validate_vin(value):
+            print(f"  ⚠️ Пропускаем невалидный VIN: {value}")
+            return None  # Пропускаем невалидный VIN
+        return {"id": feature_id, "value": value.strip().upper()}
 
     # Заголовок и Описание - требуют объект с языками ro/ru
     if feature_id in ["12", "13"]:
@@ -84,13 +141,9 @@ def format_feature_value(feat: FeatureValue) -> Dict[str, Any]:
     if unit:
         return {"id": feature_id, "value": value, "unit": unit}
     
-    # Телефон - должен быть массивом
+    # Телефон — НЕ обрабатываем здесь, обрабатываем в build_999_request
     if feature_id == "16":
-        if isinstance(value, str):
-            # Убираем + и форматируем
-            phone = value.replace("+", "").replace(" ", "").replace("-", "")
-            return {"id": feature_id, "value": [phone]}
-        return {"id": feature_id, "value": value}
+        return None  # Пропускаем, добавим в build_999_request
     
     # Булевые поля (обмен, торг и т.д.)
     boolean_fields = ["908", "939", "940"]  # обмен, торг, кредит
@@ -219,37 +272,45 @@ def build_999_request(
 ) -> Dict[str, Any]:
     """
     Формирует запрос для 999.md API.
+    Использует dict для features чтобы избежать дубликатов.
     """
-    # Форматируем features
-    formatted_features = []
+    # Используем dict для избежания дубликатов (ключ = feature_id)
+    features_dict: Dict[str, Dict[str, Any]] = {}
     
     # Добавляем изображения как feature id=14
     if uploaded_image_ids:
-        formatted_features.append({
+        features_dict[IMAGES_FEATURE_ID] = {
             "id": IMAGES_FEATURE_ID,
             "value": uploaded_image_ids
-        })
+        }
     
     # Добавляем остальные features
     for feat in request.features:
         if not feat.value or feat.value == "":
             continue
-        formatted_features.append(format_feature_value(feat))
+        
+        formatted = format_feature_value(feat)
+        if formatted:  # Пропускаем None (невалидные поля)
+            features_dict[feat.id] = formatted
     
-    # Добавляем регион (id=7 — локация)
+    # Добавляем регион (id=7 — локация) — перезаписываем если уже есть
     if request.region_id:
-        formatted_features.append({"id": "7", "value": request.region_id})
+        features_dict["7"] = {"id": "7", "value": request.region_id}
 
-    # Добавляем телефон если есть (id=16)
+    # Добавляем телефон (id=16) — один раз, правильный формат
     if request.phone_number:
-        phone = request.phone_number.replace("+", "").replace(" ", "").replace("-", "")
-        formatted_features.append({"id": "16", "value": [phone]})
+        phone = format_phone_number(request.phone_number)
+        if phone:
+            features_dict["16"] = {"id": "16", "value": [phone]}
+            print(f"📞 Телефон добавлен: {phone}")
+    
+    # Конвертируем dict обратно в list
+    formatted_features = list(features_dict.values())
     
     return {
         "category_id": request.category_id,
         "subcategory_id": request.subcategory_id,
         "offer_type": request.offer_type,
-        "state": TYPE_999_ADVERT,  # Скрытое объявление для тестирования
         "features": formatted_features
     }
 
