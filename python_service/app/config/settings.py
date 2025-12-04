@@ -69,7 +69,9 @@ CORS_ORIGINS = [
     "http://localhost:4200",
     "http://localhost:3000",
 ]
-
+BASE_URL_999 = "https://partners-api.999.md"
 # Путь к файлам данных
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FEATURES_FILE_PATH = os.path.join(BASE_DIR, "data", "feacher_for_post.json")
+
+TYPE_999_ADVERT = 'hidden' # public or hidden

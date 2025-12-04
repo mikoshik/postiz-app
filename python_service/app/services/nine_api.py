@@ -10,6 +10,7 @@ from app.config.settings import (
     DEFAULT_OFFER_TYPE,
     FEATURE_MARKA_ID,
     FEATURE_MODEL_ID,
+    BASE_URL_999
 )
 from app.utils.api_helpers import get_api_headers
 
@@ -17,7 +18,7 @@ from app.utils.api_helpers import get_api_headers
 class NineService:
     """Сервис для работы с API 999.md."""
     
-    BASE_URL = "https://partners-api.999.md"
+    BASE_URL = BASE_URL_999
     
     def get_makes(self, subcat: str = DEFAULT_SUBCATEGORY) -> List[Dict[str, str]]:
         """
