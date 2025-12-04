@@ -114,13 +114,7 @@ const checkNineNineNineValidity = async (
 
 // Статические данные для полей которые не приходят из API
 const REGIONS = [
-  { id: '12', name: 'Кишинев' },
-  { id: '16', name: 'Бельцы' },
-  { id: '19', name: 'Комрат' },
-  { id: '18', name: 'Кагул' },
-  { id: '29', name: 'Оргеев' },
-  { id: '35', name: 'Тирасполь' },
-  { id: '14', name: 'Другой / Вся Молдова' },
+  { id: '12875', name: 'Комрат' }
 ];
 
 // ==========================================
@@ -367,7 +361,7 @@ const NineNineNineSettings: FC = () => {
   useEffect(() => {
     // Устанавливаем дефолты для статических полей
     if (!watch('currency')) setValue('currency', 'eur');
-    if (!watch('regionId')) setValue('regionId', '19');
+    if (!watch('regionId')) setValue('regionId', '12875');
   }, []);
 
   // Рендер группы полей

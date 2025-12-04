@@ -128,7 +128,7 @@ export class NineNineNine extends SocialAbstract implements SocialProvider {
         console.log('[NineNineNine.post] Settings:', JSON.stringify(settings, null, 2));
         
         // Извлекаем regionId из settings
-        const regionId = settings.regionId as string || '12';
+        const regionId = settings.regionId as string || '12900'; // Кишинёв по умолчанию
         
         // Собираем URLs изображений из поста
         const images: string[] = (post.media || [])
@@ -183,46 +183,46 @@ export class NineNineNine extends SocialAbstract implements SocialProvider {
           body: JSON.stringify(requestBody),
         });
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[NineNineNine.post] HTTP Error:', response.status, errorText);
-          results.push({
-            id: post.id,
-            postId: '',
-            releaseURL: '',
-            status: 'error',
-          });
-          continue;
-        }
-        
         const result = await response.json();
         console.log('[NineNineNine.post] Response:', result);
         
-        if (result.success) {
-          results.push({
-            id: post.id,
-            postId: result.advert_id || makeId(10),
-            releaseURL: result.url || 'https://999.md',
-            status: 'posted',
-          });
-        } else {
-          console.error('[NineNineNine.post] API returned error:', result.error);
-          results.push({
-            id: post.id,
-            postId: '',
-            releaseURL: '',
-            status: 'error',
-          });
+        if (!response.ok || !result.success) {
+          // Парсим ошибку для понятного сообщения пользователю
+          let errorMessage = 'Ошибка публикации на 999.md';
+          
+          if (result.details) {
+            try {
+              const errorDetails = JSON.parse(result.details);
+              if (errorDetails.error?.errors) {
+                const errors = errorDetails.error.errors
+                  .map((e: any) => `${e.feature_id}: ${e.message}`)
+                  .join(', ');
+                errorMessage = `Ошибка 999.md: ${errors}`;
+              }
+            } catch {
+              errorMessage = result.error || result.details || errorMessage;
+            }
+          } else if (result.error) {
+            errorMessage = result.error;
+          }
+          
+          console.error('[NineNineNine.post] Error:', errorMessage);
+          
+          // Выбрасываем исключение чтобы пользователь увидел ошибку
+          throw new Error(errorMessage);
         }
+        
+        results.push({
+          id: post.id,
+          postId: result.advert_id || makeId(10),
+          releaseURL: result.url || 'https://999.md',
+          status: 'posted',
+        });
         
       } catch (error) {
         console.error('[NineNineNine.post] Exception:', error);
-        results.push({
-          id: post.id,
-          postId: '',
-          releaseURL: '',
-          status: 'error',
-        });
+        // Перебрасываем ошибку чтобы она дошла до пользователя
+        throw error;
       }
     }
     
