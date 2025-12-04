@@ -9,7 +9,7 @@ import { Integration } from '@prisma/client';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import dayjs from 'dayjs';
 
-export class NineNineNine implements SocialProvider {
+export class NineNineNine extends SocialAbstract implements SocialProvider {
   identifier = 'nineninenine';
   name = '999';
   isBetweenSteps = false;
@@ -100,52 +100,79 @@ export class NineNineNine implements SocialProvider {
     id: string,
     accessToken: string,
     postDetails: PostDetails[],
-    integration: Integration,
-    settings?: any
+    integration: Integration
   ): Promise<PostResponse[]> {
     const PYTHON_API_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
     
     console.log('[NineNineNine.post] Начало публикации...');
-    console.log('[NineNineNine.post] Settings:', JSON.stringify(settings, null, 2));
+    console.log('[NineNineNine.post] postDetails count:', postDetails.length);
+    
+    // Извлекаем данные интеграции (телефон из accessToken)
+    let phoneNumber: string | undefined;
+    try {
+      const tokenData = JSON.parse(Buffer.from(accessToken, 'base64').toString());
+      phoneNumber = tokenData.phoneNumber;
+      console.log('[NineNineNine.post] Phone from integration:', phoneNumber);
+    } catch (e) {
+      console.log('[NineNineNine.post] Could not parse accessToken');
+    }
     
     const results: PostResponse[] = [];
     
     for (const post of postDetails) {
       try {
+        // Settings находятся внутри каждого post
+        const settings = post.settings || {};
+        
+        console.log('[NineNineNine.post] Post ID:', post.id);
+        console.log('[NineNineNine.post] Settings:', JSON.stringify(settings, null, 2));
+        
+        // Извлекаем regionId из settings
+        const regionId = settings.regionId as string || '12';
+        
         // Собираем URLs изображений из поста
         const images: string[] = (post.media || [])
           .filter((m: any) => m.url || m.path)
           .map((m: any) => m.url || m.path);
         
         console.log(`[NineNineNine.post] Images: ${images.length} шт.`);
+        console.log(`[NineNineNine.post] Region ID: ${regionId}`);
         
         // Собираем features из settings
         const features: Array<{ id: string; value: string; unit?: string }> = [];
         
-        if (settings) {
-          // Проходим по всем полям settings и собираем feature_*
-          for (const [key, value] of Object.entries(settings)) {
-            if (key.startsWith('feature_') && value !== undefined && value !== null && value !== '') {
-              const featureId = key.replace('feature_', '').replace('_unit', '');
-              
-              // Пропускаем поля unit — они обрабатываются вместе с основным полем
-              if (key.endsWith('_unit')) continue;
-              
-              // Проверяем есть ли unit для этого поля
-              const unitKey = `feature_${featureId}_unit`;
-              const unit = settings[unitKey] as string | undefined;
-              
-              features.push({
-                id: featureId,
-                value: String(value),
-                ...(unit && { unit }),
-              });
-            }
+        // Проходим по всем полям settings и собираем feature_*
+        for (const [key, value] of Object.entries(settings)) {
+          if (key.startsWith('feature_') && value !== undefined && value !== null && value !== '') {
+            // Пропускаем поля unit — они обрабатываются вместе с основным полем
+            if (key.endsWith('_unit')) continue;
+            
+            const featureId = key.replace('feature_', '');
+            
+            // Проверяем есть ли unit для этого поля
+            const unitKey = `feature_${featureId}_unit`;
+            const unit = settings[unitKey] as string | undefined;
+            
+            features.push({
+              id: featureId,
+              value: String(value),
+              ...(unit && { unit }),
+            });
           }
         }
         
         console.log(`[NineNineNine.post] Features: ${features.length} шт.`);
         console.log('[NineNineNine.post] Features data:', JSON.stringify(features, null, 2));
+        
+        // Формируем запрос для Python API
+        const requestBody = {
+          images,
+          features,
+          region_id: regionId,
+          phone_number: phoneNumber,
+        };
+        
+        console.log('[NineNineNine.post] Sending to Python API:', JSON.stringify(requestBody, null, 2));
         
         // Вызываем Python API
         const response = await fetch(`${PYTHON_API_URL}/api/create-advert`, {
@@ -153,10 +180,7 @@ export class NineNineNine implements SocialProvider {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            images,
-            features,
-          }),
+          body: JSON.stringify(requestBody),
         });
         
         if (!response.ok) {
@@ -167,8 +191,7 @@ export class NineNineNine implements SocialProvider {
             postId: '',
             releaseURL: '',
             status: 'error',
-            error: `HTTP ${response.status}: ${errorText}`,
-          } as any);
+          });
           continue;
         }
         
@@ -178,18 +201,18 @@ export class NineNineNine implements SocialProvider {
         if (result.success) {
           results.push({
             id: post.id,
-            postId: result.advert_id || '',
-            releaseURL: result.url || '',
+            postId: result.advert_id || makeId(10),
+            releaseURL: result.url || 'https://999.md',
             status: 'posted',
           });
         } else {
+          console.error('[NineNineNine.post] API returned error:', result.error);
           results.push({
             id: post.id,
             postId: '',
             releaseURL: '',
             status: 'error',
-            error: result.error || 'Unknown error',
-          } as any);
+          });
         }
         
       } catch (error) {
@@ -199,8 +222,7 @@ export class NineNineNine implements SocialProvider {
           postId: '',
           releaseURL: '',
           status: 'error',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        } as any);
+        });
       }
     }
     
