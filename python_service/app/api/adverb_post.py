@@ -5,7 +5,7 @@ import httpx , json
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
-
+from ..services.ai_parser import ai_parser_service
 from app.config.settings import NINE_API_KEY, BASE_URL_999, TYPE_999_ADVERT
 
 router = APIRouter(prefix="/api", tags=["advert"])
@@ -48,11 +48,23 @@ def format_feature_value(feat: FeatureValue) -> Dict[str, Any]:
     - Цена (id=2): {"id": "2", "value": 16900, "unit": "eur"}
     - Пробег (id=104): {"id": "104", "value": 73000, "unit": "km"}
     - Телефон (id=16): {"id": "16", "value": ["37378000000"]}
+    - Заголовок (id=12): {"id": "12", "value": {"ro": "...", "ru": "..."}}
+    - Описание (id=13): {"id": "13", "value": {"ro": "...", "ru": "..."}}
     - Чекбоксы: {"id": "908", "value": true}
     """
     feature_id = feat.id
     value = feat.value
     unit = feat.unit
+    
+    # Заголовок и Описание - требуют объект с языками ro/ru
+    if feature_id in ["12", "13"]:
+        return {
+            "id": feature_id,
+            "value": {
+                "ro": ai_parser_service.translate_romanian_to_russian(value),  # Используем одинаковый текст для обоих языков
+                "ru": value
+            }
+        }
     
     # Числовые поля - конвертируем в int
     numeric_fields = ["2", "19", "104", "107", "2513", "2554", "2555"]

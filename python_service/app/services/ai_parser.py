@@ -256,6 +256,36 @@ class AIParserService:
             print(f"❌ Ошибка определения поколения: {str(e)}")
             return {"label": "", "label_id": ""}
 
+    def translate_romanian_to_russian(self, text: str) -> str:
+        """
+        Переводит текст с румынского на русский.
+        
+        Args:
+            text: Текст на русском
+        
+        Returns:
+            Текст на румынском
+        """
+        print("🌐 Перевод текста с румынского на русский")
+        
+        try:
+            prompt = f"Переведи следующий текст на румынский :\n\n{text}"
+            
+            messages = [
+                SystemMessage(content=prompt),
+                HumanMessage(content=text)
+            ]
+            
+            response = self.llm.invoke(messages)
+            output = response.content
+            
+            print("✅ Перевод завершен")
+            return output.strip()
+            
+        except Exception as e:
+            print(f"❌ Ошибка перевода: {str(e)}")
+            return ""
+
     def _clean_json_response(self, text: str) -> str:
         """Очищает ответ от markdown и лишних символов."""
         if "```json" in text:
