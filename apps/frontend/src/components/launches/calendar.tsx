@@ -806,9 +806,21 @@ const CalendarItem: FC<{
     deletePost,
   } = props;
   const { disableXAnalytics } = useVariables();
+  
+  // Проверяем, опубликован ли пост
+  const isPublished = state === 'PUBLISHED';
+  
   const preview = useCallback(() => {
     window.open(`/p/` + post.id + '?share=true', '_blank');
   }, [post]);
+  
+  // Открыть опубликованный пост на 999.md
+  const openPublishedPost = useCallback(() => {
+    if (post.releaseURL) {
+      window.open(post.releaseURL, '_blank');
+    }
+  }, [post.releaseURL]);
+  
   const [{ opacity }, dragRef] = useDrag(
     () => ({
       type: 'post',
@@ -817,41 +829,59 @@ const CalendarItem: FC<{
         interval: !!post.intervalInDays,
         date,
       },
+      // Запрещаем перетаскивание для опубликованных постов
+      canDrag: !isPublished,
       collect: (monitor) => ({
         opacity: monitor.isDragging() ? 0 : 1,
       }),
     }),
-    []
+    [isPublished]
   );
   return (
     <div
       // @ts-ignore
       ref={dragRef}
-      className={clsx('w-full flex h-full flex-1 flex-col group', 'relative')}
+      className={clsx(
+        'w-full flex h-full flex-1 flex-col group',
+        'relative',
+        isPublished && 'cursor-default'
+      )}
       style={{
         opacity,
       }}
     >
       <div
         className={clsx(
-          'text-white text-[11px] max-h-[24px] h-[24px] min-h-[24px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-btnPrimary'
+          'text-white text-[11px] max-h-[24px] h-[24px] min-h-[24px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px]',
+          isPublished ? 'bg-green-600' : 'bg-btnPrimary'
         )}
         style={{
-          backgroundColor: post?.tags?.[0]?.tag?.color,
+          backgroundColor: isPublished ? undefined : post?.tags?.[0]?.tag?.color,
         }}
       >
-        <div
-          className={clsx(
-            post?.tags?.[0]?.tag?.color ? 'mix-blend-difference' : '',
-            'group-hover:hidden cursor-pointer'
-          )}
-        >
-          {post.tags.map((p) => p.tag.name).join(', ')}
-        </div>
+        {/* Показываем иконку "опубликовано" для PUBLISHED постов */}
+        {isPublished && (
+          <div className="flex items-center gap-[4px] group-hover:hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span className="text-[10px]">{t('published', 'Published')}</span>
+          </div>
+        )}
+        {!isPublished && (
+          <div
+            className={clsx(
+              post?.tags?.[0]?.tag?.color ? 'mix-blend-difference' : '',
+              'group-hover:hidden cursor-pointer'
+            )}
+          >
+            {post.tags.map((p) => p.tag.name).join(', ')}
+          </div>
+        )}
         <div
           className={clsx(
             'hidden group-hover:block hover:underline cursor-pointer',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
+            post?.tags?.[0]?.tag?.color && !isPublished && 'mix-blend-difference'
           )}
           onClick={duplicatePost}
         >
@@ -860,41 +890,60 @@ const CalendarItem: FC<{
         <div
           className={clsx(
             'hidden group-hover:block hover:underline cursor-pointer',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
+            post?.tags?.[0]?.tag?.color && !isPublished && 'mix-blend-difference'
           )}
           onClick={preview}
         >
           <Preview />
         </div>{' '}
+        {/* Кнопка открыть на 999.md для опубликованных */}
+        {isPublished && post.releaseURL && (
+          <div
+            className="hidden group-hover:block hover:underline cursor-pointer"
+            onClick={openPublishedPost}
+            data-tooltip-id="tooltip"
+            data-tooltip-content={t('open_on_platform', 'Open on platform')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </div>
+        )}
         {post.integration.providerIdentifier === 'x' && disableXAnalytics ? (
           <></>
         ) : (
           <div
             className={clsx(
               'hidden group-hover:block hover:underline cursor-pointer',
-              post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
+              post?.tags?.[0]?.tag?.color && !isPublished && 'mix-blend-difference'
             )}
             onClick={statistics}
           >
             <Statistics />
           </div>
         )}{' '}
-        <div
-          className={clsx(
-            'hidden group-hover:block hover:underline cursor-pointer',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-          )}
-          onClick={deletePost}
-        >
-          <DeletePost />
-        </div>
+        {/* Скрываем кнопку удаления для опубликованных постов */}
+        {!isPublished && (
+          <div
+            className={clsx(
+              'hidden group-hover:block hover:underline cursor-pointer',
+              post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
+            )}
+            onClick={deletePost}
+          >
+            <DeletePost />
+          </div>
+        )}
       </div>
       <div
-        onClick={editPost}
+        onClick={isPublished ? openPublishedPost : editPost}
         className={clsx(
           'gap-[5px] w-full flex h-full flex-1 rounded-br-[10px] rounded-bl-[10px] p-[8px] text-[14px] bg-newColColor',
           'relative',
-          isBeforeNow && '!grayscale'
+          isBeforeNow && '!grayscale',
+          isPublished && 'border-l-2 border-green-500'
         )}
       >
         <div className={clsx('relative min-w-[20px]')}>
@@ -910,6 +959,7 @@ const CalendarItem: FC<{
         <div className="w-full flex-1 flex flex-col min-h-[40px]">
           <div className="text-start">
             {state === 'DRAFT' ? t('draft', 'Draft') + ': ' : ''}
+            {isPublished && <span className="text-green-500 text-[10px]">✓ </span>}
           </div>
           <div className="w-full relative">
             <div className="absolute top-0 start-0 w-full text-ellipsis break-words line-clamp-1 text-left">
