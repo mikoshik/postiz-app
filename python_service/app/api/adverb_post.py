@@ -5,6 +5,8 @@ import httpx , json
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
+
+from ..utils.api_helpers import get_api_headers
 from ..services.ai_parser import ai_parser_service
 from app.config.settings import NINE_API_KEY, BASE_URL_999, TYPE_999_ADVERT
 
@@ -55,7 +57,9 @@ def format_feature_value(feat: FeatureValue) -> Dict[str, Any]:
     feature_id = feat.id
     value = feat.value
     unit = feat.unit
-    
+        
+
+
     # Заголовок и Описание - требуют объект с языками ro/ru
     if feature_id in ["12", "13"]:
         # Переводим русский текст на румынский
@@ -107,7 +111,7 @@ async def upload_image_to_999(image_url: str, api_key: str) -> Optional[str]:
         api_key: API ключ 999.md
         
     Returns:
-        Имя загруженного изображения (например: "ba2b163dsteag6f4ecd28dadff121350.jpg?metadata=...")
+        Имя загруженного изображения (например: "ba2b163dsteag6f4ecd28dadff121350.jpg")
         или None при ошибке
     """
     try:
@@ -149,9 +153,7 @@ async def upload_image_to_999(image_url: str, api_key: str) -> Optional[str]:
             upload_response = await client.post(
                 f"{NINE_API_URL}/images",
                 files=files,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                },
+                headers=get_api_headers(),
                 timeout=60.0
             )
             
@@ -161,14 +163,21 @@ async def upload_image_to_999(image_url: str, api_key: str) -> Optional[str]:
                 result = upload_response.json()
                 print(f"  ✅ Загружено: {result}")
                 
-                # Возвращаем имя/ID изображения из ответа
-                # Формат может быть разным, проверяем варианты
-                image_id = result.get("filename") or result.get("id") or result.get("name") or result.get("image")
+                # Возвращаем image_id из ответа API
+                # API 999.md возвращает: {'image_id': 'abc123.jpg'}
+                image_id = (
+                    result.get("image_id") or 
+                    result.get("filename") or 
+                    result.get("id") or 
+                    result.get("name") or 
+                    result.get("image")
+                )
                 
                 if image_id:
+                    print(f"  ✅ Image ID: {image_id}")
                     return image_id
                     
-                # Если в ответе весь объект - возвращаем как есть
+                # Если в ответе строка - возвращаем как есть
                 if isinstance(result, str):
                     return result
                     
@@ -227,10 +236,10 @@ def build_999_request(
             continue
         formatted_features.append(format_feature_value(feat))
     
-    # Добавляем регион (id=5)
+    # Добавляем регион (id=7 — локация)
     if request.region_id:
-        formatted_features.append({"id": "5", "value": request.region_id})
-    
+        formatted_features.append({"id": "7", "value": request.region_id})
+
     # Добавляем телефон если есть (id=16)
     if request.phone_number:
         phone = request.phone_number.replace("+", "").replace(" ", "").replace("-", "")
@@ -289,8 +298,7 @@ async def create_advert(request: CreateAdvertRequest) -> Dict[str, Any]:
                 f"{NINE_API_URL}/adverts",
                 json=api_request,
                 headers={
-                    "Authorization": f"Bearer {NINE_API_KEY}",
-                    "Content-Type": "application/json",
+                    **get_api_headers(),
                     "Accept": "application/json"
                 },
                 timeout=30.0

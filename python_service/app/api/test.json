@@ -1,0 +1,110 @@
+{
+  "images": [
+    "http://localhost:4200/uploads/2025/12/04/cd87d3d6ae222ee921ffc0e1795a3f31.png",
+    "http://localhost:4200/uploads/2025/12/04/102c10deba7d27f67ef2b7885b10dbb6b49.jpg",
+    "http://localhost:4200/uploads/2025/12/04/c9a96c10bc614bfe3a1cb48c9d299bdfc.png",
+    "http://localhost:4200/uploads/2025/12/04/d1052a2fcc242f2b69841037354a2063b9.jpg",
+    "http://localhost:4200/uploads/2025/12/04/b9c70e610b7e101cb8374bd67161e372d2.jpg"
+  ],
+  "features": [
+    {
+      "id": "20",
+      "value": "130"
+    },
+    {
+      "id": "21",
+      "value": "189"
+    },
+    {
+      "id": "775",
+      "value": "18592"
+    },
+    {
+      "id": "593",
+      "value": "18668"
+    },
+    {
+      "id": "1761",
+      "value": "29670"
+    },
+    {
+      "id": "1763",
+      "value": "33044"
+    },
+    {
+      "id": "795",
+      "value": "23241"
+    },
+    {
+      "id": "2512",
+      "value": "KNAP6815GGK104312"
+    },
+    {
+      "id": "13",
+      "value": "Kia Sportage 2016. Полностью обслужен, заменены масла и фильтра, мягкая и уверенная езда."
+    },
+    {
+      "id": "1404",
+      "value": "обмен, кредит, дизель, автомат, передний привод"
+    },
+    {
+      "id": "2",
+      "value": "16900",
+      "unit": "eur"
+    },
+    {
+      "id": "19",
+      "value": "2016"
+    },
+    {
+      "id": "1196",
+      "value": "21978"
+    },
+    {
+      "id": "846",
+      "value": "19119"
+    },
+    {
+      "id": "12",
+      "value": "Kia Sportage 2016"
+    },
+    {
+      "id": "102",
+      "value": "74"
+    },
+    {
+      "id": "851",
+      "value": "19085"
+    },
+    {
+      "id": "104",
+      "value": "73000",
+      "unit": "km"
+    },
+    {
+      "id": "2553",
+      "value": "43681"
+    },
+    {
+      "id": "151",
+      "value": "24"
+    },
+    {
+      "id": "101",
+      "value": "16"
+    },
+    {
+      "id": "108",
+      "value": "5"
+    },
+    {
+      "id": "2095",
+      "value": "34652"
+    }
+  ],
+  "region_id": "12",
+  "phone_number": "060214001",
+  "category_id": "658",
+  "subcategory_id": "659",
+  "offer_type": "776"
+}
