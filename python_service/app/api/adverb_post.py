@@ -58,10 +58,12 @@ def format_feature_value(feat: FeatureValue) -> Dict[str, Any]:
     
     # Заголовок и Описание - требуют объект с языками ro/ru
     if feature_id in ["12", "13"]:
+        # Переводим русский текст на румынский
+        ro_value = ai_parser_service.translate_russian_to_romanian(value)
         return {
             "id": feature_id,
             "value": {
-                "ro": ai_parser_service.translate_romanian_to_russian(value),  # Используем одинаковый текст для обоих языков
+                "ro": ro_value if ro_value else value,
                 "ru": value
             }
         }
