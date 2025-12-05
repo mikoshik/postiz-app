@@ -1,0 +1,138 @@
+services:
+  postiz:
+    # Локальная сборка твоей кастомной версии
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    # Или если запушишь образ в registry:
+    # image: ghcr.io/YOUR_GITHUB_USERNAME/postiz-app:latest
+    container_name: postiz
+    restart: always
+    environment:
+      # === Required Settings ===
+      # MAIN_URL - основной URL сайта (для редиректов, ссылок)
+      MAIN_URL: "https://your-domain.com"
+      # FRONTEND_URL - URL фронтенда (куда заходят пользователи)
+      FRONTEND_URL: "https://your-domain.com"
+      # NEXT_PUBLIC_BACKEND_URL - URL API для запросов с фронта
+      NEXT_PUBLIC_BACKEND_URL: "https://your-domain.com/api"
+      # JWT_SECRET - секретный ключ для токенов (ЗАМЕНИ НА СВОЙ!)
+      JWT_SECRET: "CHANGE-ME-generate-random-64-char-string-here"
+      # DATABASE_URL - подключение к PostgreSQL
+      DATABASE_URL: "postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local"
+      # REDIS_URL - подключение к Redis
+      REDIS_URL: "redis://postiz-redis:6379"
+      # BACKEND_INTERNAL_URL - внутренний URL бэкенда (для SSR внутри Docker)
+      BACKEND_INTERNAL_URL: "http://localhost:3000"
+      # IS_GENERAL - true = обычный режим (не мультитенант SaaS)
+      IS_GENERAL: "true"
+      # DISABLE_REGISTRATION - true = запретить регистрацию новых юзеров
+      DISABLE_REGISTRATION: "false"
+
+      # === Storage Settings ===
+      STORAGE_PROVIDER: "local"
+      UPLOAD_DIRECTORY: "/uploads"
+      NEXT_PUBLIC_UPLOAD_DIRECTORY: "/uploads"
+
+      # === Python Service (твой кастомный AI сервис) ===
+      PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
+
+      # === Social Media API Settings ===
+      # Instagram / Facebook (Meta)
+      FACEBOOK_APP_ID: ""
+      FACEBOOK_APP_SECRET: ""
+
+      # TikTok
+      TIKTOK_CLIENT_ID: ""
+      TIKTOK_CLIENT_SECRET: ""
+
+      # Telegram (если используешь)
+      TELEGRAM_BOT_TOKEN: ""
+
+      # === Misc Settings ===
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      API_LIMIT: 30
+
+      # === Developer Settings ===
+      NX_ADD_PLUGINS: false
+
+    volumes:
+      - postiz-config:/config/
+      - postiz-uploads:/uploads/
+    ports:
+      - 5000:5000
+    networks:
+      - postiz-network
+    depends_on:
+      postiz-postgres:
+        condition: service_healthy
+      postiz-redis:
+        condition: service_healthy
+      postiz-python-service:
+        condition: service_started
+
+  postiz-postgres:
+    image: postgres:17-alpine
+    container_name: postiz-postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postiz-password
+      POSTGRES_USER: postiz-user
+      POSTGRES_DB: postiz-db-local
+    volumes:
+      - postgres-volume:/var/lib/postgresql/data
+    networks:
+      - postiz-network
+    healthcheck:
+      test: pg_isready -U postiz-user -d postiz-db-local
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  postiz-redis:
+    image: redis:7.2
+    container_name: postiz-redis
+    restart: always
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - postiz-redis-data:/data
+    networks:
+      - postiz-network
+
+  postiz-python-service:
+    build:
+      context: ./python_service
+      dockerfile: Dockerfile
+    container_name: postiz-python-service
+    restart: always
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - 8000:8000
+    networks:
+      - postiz-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  postgres-volume:
+    external: false
+  postiz-redis-data:
+    external: false
+  postiz-config:
+    external: false
+  postiz-uploads:
+    external: false
+
+networks:
+  postiz-network:
+    external: false
