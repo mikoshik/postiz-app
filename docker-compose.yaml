@@ -19,9 +19,7 @@ services:
 
   # === ОСНОВНОЕ ПРИЛОЖЕНИЕ ===
   postiz:
-    build:
-      context: .
-      dockerfile: Dockerfile # Или Dockerfile (для продакшена лучше обычный)
+    image: hiroxito/postiz-app:latest
     container_name: postiz
     restart: always
     environment:
