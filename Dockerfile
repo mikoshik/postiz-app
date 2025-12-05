@@ -27,7 +27,8 @@ RUN touch .env
 # 6. СБОРКА
 # Используем pnpm exec, чтобы он сам нашел нужный бинарник nx
 RUN pnpm run build
-
+RUN echo "=== Проверка dist ===" && ls -la /app/dist 2>&1 || echo "dist НЕ НАЙДЕНА"
+RUN echo "=== Проверка всех папок ===" && ls -la /app
 # 7. Чистим мусор
 RUN pnpm prune --prod
 
