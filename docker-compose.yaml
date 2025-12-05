@@ -115,13 +115,12 @@ services:
     networks:
       - postiz-network
     healthcheck:
-      # Убедись, что у тебя есть эндпоинт /health или убери эту проверку
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/999/makes || exit 1"]
+      # Используем встроенный модуль Python вместо curl
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; print(urllib.request.urlopen('http://localhost:8000/health').getcode())\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-
 volumes:
   postgres-volume:
   postiz-redis-data:
