@@ -1,0 +1,14 @@
+# Замени этот домен на свой!
+rvm-auto-admin.xyz  {
+    
+    # 1. Настраиваем маршрут для Python-сервиса (чтобы фронтенд мог к нему обращаться)
+    # Все запросы на https://your-domain.com/ai-api/... пойдут в Python
+    handle_path /ai-api/* {
+        reverse_proxy postiz-python-service:8000
+    }
+
+    # 2. Все остальные запросы идут на основной сайт (Postiz)
+    handle {
+        reverse_proxy postiz:5000
+    }
+}
