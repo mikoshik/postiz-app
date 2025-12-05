@@ -1,77 +1,64 @@
-# === ЭТАП 1: СБОРКА (Builder) ===
+# === ЭТАП 1: СБОРКА ===
 FROM node:22-alpine AS builder
 
-# Устанавливаем системные зависимости
+# 1. Ставим системные утилиты
 RUN apk add --no-cache libc6-compat python3 make g++
 
-# !!! ИСПРАВЛЕНИЕ: Устанавливаем pnpm И nx глобально !!!
-RUN npm install -g pnpm@9.15.0 nx
+# 2. Ставим pnpm
+RUN npm install -g pnpm@9.15.0
 
 WORKDIR /app
 
-# 1. Копируем зависимости
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY .npmrc ./ 
-
-# 2. Копируем библиотеки (нужно для postinstall)
-COPY libraries ./libraries 
-
-# 3. Устанавливаем зависимости
-RUN pnpm install --frozen-lockfile
-
-# 4. Копируем исходный код
+# 3. !!! ГЛАВНОЕ: КОПИРУЕМ ВООБЩЕ ВСЁ !!!
+# Мы не выбираем файлы. Мы просто копируем всё, что есть в папке проекта.
 COPY . .
 
-# 5. Настраиваем память
+# 4. Устанавливаем зависимости
+# Теперь pnpm точно найдет pnpm-lock.yaml и libraries, потому что мы скопировали всё
+RUN pnpm install --frozen-lockfile
+
+# 5. Память и ENV
 ENV NODE_OPTIONS="--max-old-space-size=3072"
 RUN touch .env 
 
-# !!! СБОРКА ПО ОЧЕРЕДИ (Через глобальный nx) !!!
-# Теперь команда 'nx' точно будет найдена
-RUN nx build backend
-RUN nx build workers
-RUN nx build cron
-RUN nx build frontend
+# 6. СБОРКА
+# Используем pnpm exec, чтобы он сам нашел нужный бинарник nx
+RUN pnpm exec nx build backend
+RUN pnpm exec nx build workers
+RUN pnpm exec nx build cron
+RUN pnpm exec nx build frontend
 
-# Чистим мусор
+# 7. Чистим мусор
 RUN pnpm prune --prod
 
-# === ЭТАП 2: ЗАПУСК (Runner) ===
+# === ЭТАП 2: ЗАПУСК ===
 FROM node:22-alpine AS runner
 
-# Устанавливаем Nginx и PM2
 RUN apk add --no-cache nginx curl bash
 RUN npm install -g pnpm@9.15.0 pm2
 
 WORKDIR /app
 
-# Создаем пользователя
 RUN adduser -D -g 'www' www
 RUN mkdir -p /var/lib/nginx /var/log/nginx /run/nginx
 RUN chown -R www:www /var/lib/nginx /var/log/nginx /run/nginx
 
-# --- КОПИРОВАНИЕ ---
+# --- КОПИРОВАНИЕ ГОТОВОГО ---
 
-# Зависимости
+# Мы просто копируем результаты из папки /app (где всё лежало)
 COPY --from=builder /app/node_modules ./node_modules
-
-# Исходники
 COPY --from=builder /app/apps ./apps
 COPY --from=builder /app/libraries ./libraries
 COPY --from=builder /app/package.json ./
 
-# Скомпилированные бэкенды (dist)
+# Скомпилированные папки
 COPY --from=builder /app/dist ./dist
-
-# Скомпилированный фронтенд (.next) - ВАЖНО
 COPY --from=builder /app/apps/frontend/.next ./apps/frontend/.next
 
 # Конфиги
 COPY --from=builder /app/var/docker/nginx.conf /etc/nginx/nginx.conf
-# Берем ecosystem.config.js с сервера (где лежит Dockerfile)
-COPY ecosystem.config.js ./
-
-# -------------------
+# Берем ecosystem, который мы скопировали в самом начале шагом "COPY . ."
+COPY --from=builder /app/ecosystem.config.js ./
 
 # Папка загрузок
 RUN mkdir -p /app/uploads && chown -R www:www /app/uploads
