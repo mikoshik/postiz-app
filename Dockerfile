@@ -32,12 +32,10 @@ ENV NODE_OPTIONS="--max-old-space-size=3072"
 RUN touch .env 
 
 # Запускаем сборку (тут создается папка dist)
-RUN npx nx build backend
-RUN npx nx build workers
-RUN npx nx build cron
-RUN npx nx build frontend
-# 6. Удаляем лишние dev-зависимости для уменьшения размера
-RUN pnpm prune --prod
+RUN pnpm exec nx build backend
+RUN pnpm exec nx build workers
+RUN pnpm exec nx build cron
+RUN pnpm exec nx build frontend
 
 # === ЭТАП 2: ЗАПУСК (Runner) ===
 FROM node:22-alpine AS runner
