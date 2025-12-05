@@ -68,6 +68,8 @@ DYNAMIC_IDS_MAP = {
 CORS_ORIGINS = [
     "http://localhost:4200",
     "http://localhost:3000",
+    "https://rvm-auto-admin.xyz",     # <-- Твой домен
+    "https://www.rvm-auto-admin.xyz"
 ]
 BASE_URL_999 = "https://partners-api.999.md"
 # Путь к файлам данных
