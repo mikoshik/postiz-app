@@ -4,38 +4,37 @@ FROM node:22-alpine AS builder
 # Устанавливаем системные зависимости
 RUN apk add --no-cache libc6-compat python3 make g++
 
-# Устанавливаем pnpm
-RUN npm install -g pnpm@9.15.0
+# !!! ИСПРАВЛЕНИЕ: Устанавливаем pnpm И nx глобально !!!
+RUN npm install -g pnpm@9.15.0 nx
 
 WORKDIR /app
 
-# 1. Копируем файлы зависимостей
+# 1. Копируем зависимости
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-# Если есть .npmrc, копируем (не критично, если нет)
 COPY .npmrc ./ 
 
-# 2. !!! КРИТИЧНО: Копируем библиотеки ПЕРЕД установкой !!!
-# Без этого pnpm install упадет на postinstall скриптах
+# 2. Копируем библиотеки (нужно для postinstall)
 COPY libraries ./libraries 
 
 # 3. Устанавливаем зависимости
 RUN pnpm install --frozen-lockfile
 
-# 4. Копируем весь исходный код
+# 4. Копируем исходный код
 COPY . .
 
-# 5. Собираем проект
-# Ограничиваем память, чтобы сервер не упал
+# 5. Настраиваем память
 ENV NODE_OPTIONS="--max-old-space-size=3072"
-
-# Создаем заглушку .env для билда фронтенда
 RUN touch .env 
 
-# Запускаем сборку (тут создается папка dist)
-RUN pnpm exec nx build backend
-RUN pnpm exec nx build workers
-RUN pnpm exec nx build cron
-RUN pnpm exec nx build frontend
+# !!! СБОРКА ПО ОЧЕРЕДИ (Через глобальный nx) !!!
+# Теперь команда 'nx' точно будет найдена
+RUN nx build backend
+RUN nx build workers
+RUN nx build cron
+RUN nx build frontend
+
+# Чистим мусор
+RUN pnpm prune --prod
 
 # === ЭТАП 2: ЗАПУСК (Runner) ===
 FROM node:22-alpine AS runner
@@ -51,34 +50,33 @@ RUN adduser -D -g 'www' www
 RUN mkdir -p /var/lib/nginx /var/log/nginx /run/nginx
 RUN chown -R www:www /var/lib/nginx /var/log/nginx /run/nginx
 
-# --- КОПИРОВАНИЕ ФАЙЛОВ (САМОЕ ВАЖНОЕ) ---
+# --- КОПИРОВАНИЕ ---
 
-# 1. Зависимости
+# Зависимости
 COPY --from=builder /app/node_modules ./node_modules
 
-# 2. Исходный код (нужен для Next.js и скриптов)
+# Исходники
 COPY --from=builder /app/apps ./apps
 COPY --from=builder /app/libraries ./libraries
 COPY --from=builder /app/package.json ./
 
-# 3. !!! СКОМПИЛИРОВАННЫЙ БЭКЕНД (Этого не хватало!) !!!
+# Скомпилированные бэкенды (dist)
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/apps/frontend/.next ./apps/frontend/.next
-# 4. Конфиг Nginx (из папки проекта)
-COPY --from=builder /app/var/docker/nginx.conf /etc/nginx/nginx.conf
 
-# 5. Конфиг PM2 (берем из текущей папки, так надежнее)
+# Скомпилированный фронтенд (.next) - ВАЖНО
+COPY --from=builder /app/apps/frontend/.next ./apps/frontend/.next
+
+# Конфиги
+COPY --from=builder /app/var/docker/nginx.conf /etc/nginx/nginx.conf
+# Берем ecosystem.config.js с сервера (где лежит Dockerfile)
 COPY ecosystem.config.js ./
 
-# -----------------------------------------
+# -------------------
 
-# Создаем папку для загрузок
+# Папка загрузок
 RUN mkdir -p /app/uploads && chown -R www:www /app/uploads
 
-# Переключаемся на пользователя
 USER www
-
 EXPOSE 5000
 
-# Запускаем Nginx и PM2
 CMD ["sh", "-c", "nginx && pm2-runtime start ecosystem.config.js"]
