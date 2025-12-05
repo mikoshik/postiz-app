@@ -11,30 +11,30 @@ WORKDIR /app
 
 # 1. Копируем файлы зависимостей
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-# Если есть локальный конфиг npm (обычно не обязателен, но оставим)
+# Если есть .npmrc, копируем (не критично, если нет)
 COPY .npmrc ./ 
 
-# !!! ВАЖНОЕ ИСПРАВЛЕНИЕ: Копируем библиотеки ПЕРЕД установкой !!!
-# Без этого prisma generate не найдет схему и упадет
+# 2. !!! КРИТИЧНО: Копируем библиотеки ПЕРЕД установкой !!!
+# Без этого pnpm install упадет на postinstall скриптах
 COPY libraries ./libraries 
 
-# 2. Устанавливаем зависимости
+# 3. Устанавливаем зависимости
 RUN pnpm install --frozen-lockfile
 
-# 3. Теперь копируем весь остальной код (apps и прочее)
+# 4. Копируем весь исходный код
 COPY . .
 
-# 4. Собираем проект
-# 3 ГБ памяти (3072) обычно достаточно, если есть swap
+# 5. Собираем проект
+# Ограничиваем память, чтобы сервер не упал
 ENV NODE_OPTIONS="--max-old-space-size=3072"
 
-# Создаем заглушку .env для билда
+# Создаем заглушку .env для билда фронтенда
 RUN touch .env 
 
-# Запускаем сборку
+# Запускаем сборку (тут создается папка dist)
 RUN pnpm run build
 
-# 5. Удаляем лишнее для уменьшения размера
+# 6. Удаляем лишние dev-зависимости для уменьшения размера
 RUN pnpm prune --prod
 
 # === ЭТАП 2: ЗАПУСК (Runner) ===
@@ -51,17 +51,28 @@ RUN adduser -D -g 'www' www
 RUN mkdir -p /var/lib/nginx /var/log/nginx /run/nginx
 RUN chown -R www:www /var/lib/nginx /var/log/nginx /run/nginx
 
-# Копируем собранное из builder
+# --- КОПИРОВАНИЕ ФАЙЛОВ (САМОЕ ВАЖНОЕ) ---
+
+# 1. Зависимости
 COPY --from=builder /app/node_modules ./node_modules
+
+# 2. Исходный код (нужен для Next.js и скриптов)
 COPY --from=builder /app/apps ./apps
 COPY --from=builder /app/libraries ./libraries
 COPY --from=builder /app/package.json ./
+
+# 3. !!! СКОМПИЛИРОВАННЫЙ БЭКЕНД (Этого не хватало!) !!!
+COPY --from=builder /app/dist ./dist
+
+# 4. Конфиг Nginx (из папки проекта)
 COPY --from=builder /app/var/docker/nginx.conf /etc/nginx/nginx.conf
 
-# Копируем конфиг PM2 (он теперь лежит рядом с Dockerfile)
+# 5. Конфиг PM2 (берем из текущей папки, так надежнее)
 COPY ecosystem.config.js ./
 
-# Папка загрузок
+# -----------------------------------------
+
+# Создаем папку для загрузок
 RUN mkdir -p /app/uploads && chown -R www:www /app/uploads
 
 # Переключаемся на пользователя
@@ -69,5 +80,5 @@ USER www
 
 EXPOSE 5000
 
-# Запускаем
+# Запускаем Nginx и PM2
 CMD ["sh", "-c", "nginx && pm2-runtime start ecosystem.config.js"]
