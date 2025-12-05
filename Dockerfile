@@ -32,8 +32,10 @@ ENV NODE_OPTIONS="--max-old-space-size=3072"
 RUN touch .env 
 
 # Запускаем сборку (тут создается папка dist)
-RUN pnpm run build
-
+RUN npx nx build backend
+RUN npx nx build workers
+RUN npx nx build cron
+RUN npx nx build frontend
 # 6. Удаляем лишние dev-зависимости для уменьшения размера
 RUN pnpm prune --prod
 
