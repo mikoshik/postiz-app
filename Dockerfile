@@ -25,7 +25,7 @@ COPY . .
 
 # 4. Собираем проект (Frontend + Backend)
 # Увеличиваем память для сборки, чтобы не падало
-ENV NODE_OPTIONS="--max-old-space-size=8192"
+ENV NODE_OPTIONS="--max-old-space-size=3072"
 
 # Важный момент: Postiz требует .env при сборке фронтенда (иногда).
 # Мы создаем заглушку .env для билда, реальные данные подставятся при запуске.
@@ -58,7 +58,7 @@ COPY --from=builder /app/libraries ./libraries
 COPY --from=builder /app/package.json ./
 # Копируем конфиги PM2 и Nginx
 COPY --from=builder /app/var/docker/nginx.conf /etc/nginx/nginx.conf
-COPY --from=builder /app/ecosystem.config.js ./
+COPY ecosystem.config.js ./
 
 # Создаем папку для загрузок и даем права
 RUN mkdir -p /app/uploads && chown -R www:www /app/uploads
