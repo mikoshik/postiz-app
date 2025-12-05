@@ -1,66 +1,62 @@
 services:
+  # === ВЕБ-СЕРВЕР (ВХОДНАЯ ДВЕРЬ) ===
+  caddy:
+    image: caddy:alpine
+    container_name: postiz-caddy
+    restart: always
+    ports:
+      - "80:80"   # HTTP (для автоматического редиректа)
+      - "443:443" # HTTPS (защищенный)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile # Конфиг
+      - caddy_data:/data # Хранилище сертификатов
+      - caddy_config:/config
+    networks:
+      - postiz-network
+    depends_on:
+      - postiz
+      - postiz-python-service
+
+  # === ОСНОВНОЕ ПРИЛОЖЕНИЕ ===
   postiz:
-    # Локальная сборка твоей кастомной версии
     build:
       context: .
-      dockerfile: Dockerfile.dev
-    # Или если запушишь образ в registry:
-    # image: ghcr.io/YOUR_GITHUB_USERNAME/postiz-app:latest
+      dockerfile: Dockerfile # Или Dockerfile (для продакшена лучше обычный)
     container_name: postiz
     restart: always
     environment:
-      # === Required Settings ===
-      # MAIN_URL - основной URL сайта (для редиректов, ссылок)
-      MAIN_URL: "https://your-domain.com"
-      # FRONTEND_URL - URL фронтенда (куда заходят пользователи)
-      FRONTEND_URL: "https://your-domain.com"
-      # NEXT_PUBLIC_BACKEND_URL - URL API для запросов с фронта
-      NEXT_PUBLIC_BACKEND_URL: "https://your-domain.com/api"
-      # JWT_SECRET - секретный ключ для токенов (ЗАМЕНИ НА СВОЙ!)
-      JWT_SECRET: "CHANGE-ME-generate-random-64-char-string-here"
-      # DATABASE_URL - подключение к PostgreSQL
+      # ВАЖНО: Тут должен быть твой реальный домен с https
+      MAIN_URL: "https://rvm-auto-admin.xyz"
+      FRONTEND_URL: "https://rvm-auto-admin.xyz"
+      NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.xyz/api"
+      
+      # Настройка Python сервиса (теперь он доступен через путь /ai-api)
+      # Но внутри сети докера они общаются напрямую:
+      PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
+      
+      # Остальные настройки (Секреты бери из .env файла на сервере!)
+      JWT_SECRET: "${JWT_SECRET}"
       DATABASE_URL: "postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local"
-      # REDIS_URL - подключение к Redis
       REDIS_URL: "redis://postiz-redis:6379"
-      # BACKEND_INTERNAL_URL - внутренний URL бэкенда (для SSR внутри Docker)
       BACKEND_INTERNAL_URL: "http://localhost:3000"
-      # IS_GENERAL - true = обычный режим (не мультитенант SaaS)
       IS_GENERAL: "true"
-      # DISABLE_REGISTRATION - true = запретить регистрацию новых юзеров
       DISABLE_REGISTRATION: "false"
-
-      # === Storage Settings ===
       STORAGE_PROVIDER: "local"
       UPLOAD_DIRECTORY: "/uploads"
       NEXT_PUBLIC_UPLOAD_DIRECTORY: "/uploads"
-
-      # === Python Service (твой кастомный AI сервис) ===
-      PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
-
-      # === Social Media API Settings ===
-      # Instagram / Facebook (Meta)
-      FACEBOOK_APP_ID: ""
-      FACEBOOK_APP_SECRET: ""
-
-      # TikTok
-      TIKTOK_CLIENT_ID: ""
-      TIKTOK_CLIENT_SECRET: ""
-
-      # Telegram (если используешь)
-      TELEGRAM_BOT_TOKEN: ""
-
-      # === Misc Settings ===
+      
+      # API Keys (тоже из .env)
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
-      API_LIMIT: 30
-
-      # === Developer Settings ===
-      NX_ADD_PLUGINS: false
-
+      TELEGRAM_BOT_NAME: "${TELEGRAM_BOT_NAME}"
+      TELEGRAM_TOKEN: "${TELEGRAM_TOKEN}"
+      FACEBOOK_APP_ID: "${FACEBOOK_APP_ID}"
+      FACEBOOK_APP_SECRET: "${FACEBOOK_APP_SECRET}"
+      TIKTOK_CLIENT_ID: "${TIKTOK_CLIENT_ID}"
+      TIKTOK_CLIENT_SECRET: "${TIKTOK_CLIENT_SECRET}"
     volumes:
       - postiz-config:/config/
       - postiz-uploads:/uploads/
-    ports:
-      - 5000:5000
+    # Порты убрали! Доступ только через Caddy.
     networks:
       - postiz-network
     depends_on:
@@ -68,9 +64,8 @@ services:
         condition: service_healthy
       postiz-redis:
         condition: service_healthy
-      postiz-python-service:
-        condition: service_started
 
+  # === БАЗА ДАННЫХ ===
   postiz-postgres:
     image: postgres:17-alpine
     container_name: postiz-postgres
@@ -89,6 +84,7 @@ services:
       timeout: 3s
       retries: 3
 
+  # === КЭШ ===
   postiz-redis:
     image: redis:7.2
     container_name: postiz-redis
@@ -103,6 +99,7 @@ services:
     networks:
       - postiz-network
 
+  # === ТВОЙ PYTHON СЕРВИС ===
   postiz-python-service:
     build:
       context: ./python_service
@@ -110,14 +107,16 @@ services:
     container_name: postiz-python-service
     restart: always
     environment:
+      NINE_API_KEY: "${NINE_API_KEY}"
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      # PYTHONUNBUFFERED=1 чтобы логи были видны сразу
       PYTHONUNBUFFERED: "1"
-    ports:
-      - 8000:8000
+
     networks:
       - postiz-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      # Убедись, что у тебя есть эндпоинт /health или убери эту проверку
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/999/makes || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -125,14 +124,11 @@ services:
 
 volumes:
   postgres-volume:
-    external: false
   postiz-redis-data:
-    external: false
   postiz-config:
-    external: false
   postiz-uploads:
-    external: false
+  caddy_data:   # Важно для хранения SSL сертификатов
+  caddy_config:
 
 networks:
   postiz-network:
-    external: false
