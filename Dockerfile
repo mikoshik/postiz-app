@@ -65,7 +65,7 @@ COPY --from=builder /app/package.json ./
 
 # 3. !!! СКОМПИЛИРОВАННЫЙ БЭКЕНД (Этого не хватало!) !!!
 COPY --from=builder /app/dist ./dist
-
+COPY --from=builder /app/apps/frontend/.next ./apps/frontend/.next
 # 4. Конфиг Nginx (из папки проекта)
 COPY --from=builder /app/var/docker/nginx.conf /etc/nginx/nginx.conf
 
