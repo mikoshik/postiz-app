@@ -23,10 +23,7 @@ RUN touch .env
 
 # 6. СБОРКА
 # Используем pnpm exec, чтобы он сам нашел нужный бинарник nx
-RUN pnpm exec nx build backend
-RUN pnpm exec nx build workers
-RUN pnpm exec nx build cron
-RUN pnpm exec nx build frontend
+RUN pnpm run build
 
 # 7. Чистим мусор
 RUN pnpm prune --prod
