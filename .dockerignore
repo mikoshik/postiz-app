@@ -5,7 +5,6 @@
 node_modules/*
 node_modules
 docker-data/*
-dist
 .nx
 /apps/frontend/.next
 /apps/backend/dist

@@ -6,6 +6,9 @@ RUN apk add --no-cache libc6-compat python3 make g++
 
 # 2. Ставим pnpm
 RUN npm install -g pnpm@9.15.0
+# Проверяем что сборка создала нужные файлы
+RUN ls -la /app/dist || echo "dist folder not found"
+RUN ls -la /app/apps/frontend/.next || echo ".next folder not found"
 
 WORKDIR /app
 
