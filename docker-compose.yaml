@@ -99,9 +99,7 @@ services:
 
   # === ТВОЙ PYTHON СЕРВИС ===
   postiz-python-service:
-    build:
-      context: ./python_service
-      dockerfile: Dockerfile
+    image: hiroxito/postiz-python-service:latest
     container_name: postiz-python-service
     restart: always
     environment:

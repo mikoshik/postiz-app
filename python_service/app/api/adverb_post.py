@@ -163,18 +163,20 @@ def convert_localhost_to_docker(url: str) -> str:
     
     http://localhost:5000/uploads/... -> http://postiz:5000/uploads/...
     """
-    # Заменяем localhost на имя контейнера postiz
-    docker_url = url.replace("http://localhost:5000", "http://postiz:5000")
-    docker_url = docker_url.replace("http://127.0.0.1:5000", "http://postiz:5000")
-    
-    # Также можно использовать переменную окружения для гибкости
+    # Получаем внутренний URL из переменной окружения или используем имя контейнера
     internal_url = os.getenv("POSTIZ_INTERNAL_URL", "http://postiz:5000")
-    if "localhost:5000" in url or "127.0.0.1:5000" in url:
+    
+    # Заменяем localhost и 127.0.0.1 на внутренний URL
+    docker_url = url
+    if "localhost:5000" in url:
         docker_url = url.replace("http://localhost:5000", internal_url)
+    elif "127.0.0.1:5000" in url:
         docker_url = url.replace("http://127.0.0.1:5000", internal_url)
     
     if docker_url != url:
         print(f"  🔄 URL преобразован: {url[:50]}... -> {docker_url[:50]}...")
+    else: 
+        print(f"  ℹ️ URL не  преобразован: {url[:50]}...")
     
     return docker_url
 
