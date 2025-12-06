@@ -25,16 +25,6 @@ RUN pnpm run build:workers
 RUN pnpm run build:cron
 RUN pnpm run build:frontend
 
-# 7. Проверка что создалось - ВЫВЕДЕТ ОШИБКУ ЕСЛИ НЕ НАЙДЁТ
-RUN echo "=== CHECKING DIST FILES ===" && \
-    ls -la /app/apps/backend/dist/ && \
-    ls -la /app/apps/workers/dist/ && \
-    ls -la /app/apps/cron/dist/ && \
-    ls -la /app/apps/frontend/.next/ && \
-    echo "=== ALL DIST FOUND ==="
-
-# Если хочешь остановить сборку и посмотреть — раскомментируй:
-# RUN exit 1
 
 # 8. Чистим dev зависимости
 RUN pnpm prune --prod
@@ -47,9 +37,8 @@ RUN npm install -g pnpm@9.15.0 pm2
 
 WORKDIR /app
 
-RUN adduser -D -g 'www' www
+# Nginx директории
 RUN mkdir -p /var/lib/nginx /var/log/nginx /run/nginx
-RUN chown -R www:www /var/lib/nginx /var/log/nginx /run/nginx
 
 # --- КОПИРОВАНИЕ ---
 COPY --from=builder /app/node_modules ./node_modules
@@ -61,10 +50,10 @@ COPY --from=builder /app/libraries ./libraries
 COPY --from=builder /app/var/docker/nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /app/ecosystem.config.js ./
 
-# Папка загрузок - создаём И /uploads И /app/uploads с правами www
-RUN mkdir -p /uploads /app/uploads && chown -R www:www /uploads /app/uploads
+# Папка загрузок
+RUN mkdir -p /uploads /app/uploads
 
-USER www
+# НЕ переключаемся на www — остаёмся root
 EXPOSE 5000
 
 CMD ["sh", "-c", "nginx && pm2-runtime start ecosystem.config.js"]
