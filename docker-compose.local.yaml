@@ -10,8 +10,8 @@ services:
       FRONTEND_URL: "http://localhost:5000"
       NEXT_PUBLIC_BACKEND_URL: "http://localhost:5000/api"
       
-      # Python сервис
-      PYTHON_SERVICE_URL: "http://localhost:8000"
+      # Python сервис - ВАЖНО: используем имя сервиса, не localhost!
+      PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
       
       # Настройки
       JWT_SECRET: "local-test-secret-key-12345"
