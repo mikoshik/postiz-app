@@ -28,12 +28,11 @@ services:
       FRONTEND_URL: "https://rvm-auto-admin.online"
       NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.online/api"
       
-      # Настройка Python сервиса (теперь он доступен через путь /ai-api)
-      # Но внутри сети докера они общаются напрямую:
+      # Python сервис - ВАЖНО: используем имя сервиса, не localhost!
       PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
       
-      # Остальные настройки (Секреты бери из .env файла на сервере!)
-      JWT_SECRET: "${JWT_SECRET}"
+      # Настройки
+      JWT_SECRET: "local-test-secret-key-12345"
       DATABASE_URL: "postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local"
       REDIS_URL: "redis://postiz-redis:6379"
       BACKEND_INTERNAL_URL: "http://localhost:3000"
@@ -42,19 +41,31 @@ services:
       STORAGE_PROVIDER: "local"
       UPLOAD_DIRECTORY: "/uploads"
       NEXT_PUBLIC_UPLOAD_DIRECTORY: "/uploads"
-      
-      # API Keys (тоже из .env)
-      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+
       TELEGRAM_BOT_NAME: "${TELEGRAM_BOT_NAME}"
       TELEGRAM_TOKEN: "${TELEGRAM_TOKEN}"
       FACEBOOK_APP_ID: "${FACEBOOK_APP_ID}"
       FACEBOOK_APP_SECRET: "${FACEBOOK_APP_SECRET}"
       TIKTOK_CLIENT_ID: "${TIKTOK_CLIENT_ID}"
       TIKTOK_CLIENT_SECRET: "${TIKTOK_CLIENT_SECRET}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+
     volumes:
+      # === ДАННЫЕ ===
       - postiz-config:/config/
       - postiz-uploads:/uploads/
-    # Порты убрали! Доступ только через Caddy.
+      
+      # === КОНФИГИ (можно менять без пересборки) ===
+      - ./var/docker/nginx.conf:/etc/nginx/nginx.conf
+      - ./ecosystem.config.js:/app/ecosystem.config.js
+      
+      # === ЛОГИ (для отладки) ===
+      - ./logs/nginx:/var/log/nginx
+      
+      # === PRISMA (если меняешь схему БД) ===
+      - ./libraries/nestjs-libraries/src/database/prisma:/app/libraries/nestjs-libraries/src/database/prisma
+    # ports:
+    #   - "5000:5000"
     networks:
       - postiz-network
     depends_on:
@@ -97,33 +108,27 @@ services:
     networks:
       - postiz-network
 
-  # === ТВОЙ PYTHON СЕРВИС ===
+  # === PYTHON СЕРВИС ===
   postiz-python-service:
-    image: hiroxito/postiz-python-service:latest
+    build:
+      context: ./python_service
+      dockerfile: Dockerfile
     container_name: postiz-python-service
     restart: always
     environment:
-      NINE_API_KEY: "${NINE_API_KEY}"
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
-      # PYTHONUNBUFFERED=1 чтобы логи были видны сразу
+      NINE_API_KEY: "${NINE_API_KEY}"
       PYTHONUNBUFFERED: "1"
-
+    # ports:
+    #   - "8000:8000"
     networks:
       - postiz-network
-    healthcheck:
-      # Используем встроенный модуль Python вместо curl
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; print(urllib.request.urlopen('http://localhost:8000/health').getcode())\" || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+
 volumes:
   postgres-volume:
   postiz-redis-data:
   postiz-config:
   postiz-uploads:
-  caddy_data:   # Важно для хранения SSL сертификатов
-  caddy_config:
 
 networks:
   postiz-network:
