@@ -11,7 +11,7 @@ services:
       NEXT_PUBLIC_BACKEND_URL: "http://localhost:5000/api"
       
       # Python сервис
-      PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
+      PYTHON_SERVICE_URL: "http://localhost:8000"
       
       # Настройки
       JWT_SECRET: "local-test-secret-key-12345"
@@ -23,9 +23,29 @@ services:
       STORAGE_PROVIDER: "local"
       UPLOAD_DIRECTORY: "/uploads"
       NEXT_PUBLIC_UPLOAD_DIRECTORY: "/uploads"
+
+      TELEGRAM_BOT_NAME: "${TELEGRAM_BOT_NAME}"
+      TELEGRAM_TOKEN: "${TELEGRAM_TOKEN}"
+      FACEBOOK_APP_ID: "${FACEBOOK_APP_ID}"
+      FACEBOOK_APP_SECRET: "${FACEBOOK_APP_SECRET}"
+      TIKTOK_CLIENT_ID: "${TIKTOK_CLIENT_ID}"
+      TIKTOK_CLIENT_SECRET: "${TIKTOK_CLIENT_SECRET}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+
     volumes:
+      # === ДАННЫЕ ===
       - postiz-config:/config/
       - postiz-uploads:/uploads/
+      
+      # === КОНФИГИ (можно менять без пересборки) ===
+      - ./var/docker/nginx.conf:/etc/nginx/nginx.conf
+      - ./ecosystem.config.js:/app/ecosystem.config.js
+      
+      # === ЛОГИ (для отладки) ===
+      - ./logs/nginx:/var/log/nginx
+      
+      # === PRISMA (если меняешь схему БД) ===
+      - ./libraries/nestjs-libraries/src/database/prisma:/app/libraries/nestjs-libraries/src/database/prisma
     ports:
       - "5000:5000"
     networks:
@@ -79,6 +99,7 @@ services:
     restart: always
     environment:
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      NINE_API_KEY: "${NINE_API_KEY}"
       PYTHONUNBUFFERED: "1"
     ports:
       - "8000:8000"
