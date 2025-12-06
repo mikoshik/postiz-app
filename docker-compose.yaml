@@ -24,9 +24,9 @@ services:
     restart: always
     environment:
       # ВАЖНО: Тут должен быть твой реальный домен с https
-      MAIN_URL: "https://rvm-auto-admin.xyz"
-      FRONTEND_URL: "https://rvm-auto-admin.xyz"
-      NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.xyz/api"
+      MAIN_URL: "https://rvm-auto-admin.online"
+      FRONTEND_URL: "https://rvm-auto-admin.online"
+      NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.online/api"
       
       # Настройка Python сервиса (теперь он доступен через путь /ai-api)
       # Но внутри сети докера они общаются напрямую:
