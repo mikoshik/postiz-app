@@ -1,5 +1,5 @@
 # Замени этот домен на свой!
-rvm-auto-admin.xyz  {
+rvm-auto-admin.online  {
     
     # 1. Настраиваем маршрут для Python-сервиса (чтобы фронтенд мог к нему обращаться)
     # Все запросы на https://your-domain.com/ai-api/... пойдут в Python
