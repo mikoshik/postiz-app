@@ -1,6 +1,7 @@
 # === ЭТАП 1: СБОРКА ===
 FROM node:22-alpine AS builder
 ENV NODE_OPTIONS="--max-old-space-size=8192"
+
 # 1. Ставим системные утилиты
 RUN apk add --no-cache libc6-compat python3 make g++
 
@@ -15,24 +16,27 @@ COPY . .
 # 4. Устанавливаем зависимости
 RUN pnpm install --frozen-lockfile
 
-# 5. Память и ENV
-# ENV NODE_OPTIONS="--max-old-space-size=3072"
+# 5. ENV
 RUN touch .env 
 
-# 6. СБОРКА
-# RUN pnpm run build
+# 6. СБОРКА ПО ЧАСТЯМ
 RUN pnpm run build:backend
 RUN pnpm run build:workers
 RUN pnpm run build:cron
 RUN pnpm run build:frontend
 
-# 7. Проверка что создалось (ПОСЛЕ сборки!)
-# 8. ОСТАНОВКА ДЛЯ ДИАГНОСТИКИ - закомментируй после проверки
-# Временно не идём дальше, чтобы увидеть логи
-CMD ["echo", "Builder finished - check logs above"]
+# 7. Проверка что создалось - ВЫВЕДЕТ ОШИБКУ ЕСЛИ НЕ НАЙДЁТ
+RUN echo "=== CHECKING DIST FILES ===" && \
+    ls -la /app/apps/backend/dist/ && \
+    ls -la /app/apps/workers/dist/ && \
+    ls -la /app/apps/cron/dist/ && \
+    ls -la /app/apps/frontend/.next/ && \
+    echo "=== ALL DIST FOUND ==="
 
-# === ЗАКОММЕНТИРОВАНО ДЛЯ ДИАГНОСТИКИ ===
-# 9. Чистим мусор
+# Если хочешь остановить сборку и посмотреть — раскомментируй:
+# RUN exit 1
+
+# 8. Чистим dev зависимости
 RUN pnpm prune --prod
 
 # === ЭТАП 2: ЗАПУСК ===
@@ -49,17 +53,9 @@ RUN chown -R www:www /var/lib/nginx /var/log/nginx /run/nginx
 
 # --- КОПИРОВАНИЕ ---
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package.json ./ 
 COPY --from=builder /app/apps ./apps
 COPY --from=builder /app/libraries ./libraries
-
-# Скомпилированные файлы (билдятся внутри apps/)
-COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
-COPY --from=builder /app/apps/workers/dist ./apps/workers/dist
-COPY --from=builder /app/apps/cron/dist ./apps/cron/dist
-
-# Next.js build
-COPY --from=builder /app/apps/frontend/.next ./apps/frontend/.next
 
 # Конфиги
 COPY --from=builder /app/var/docker/nginx.conf /etc/nginx/nginx.conf
