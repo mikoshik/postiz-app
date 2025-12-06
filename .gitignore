@@ -65,4 +65,4 @@ i18n.cache
 __pycache__
 *.pyc
 python_service/venv
-
+/logs
