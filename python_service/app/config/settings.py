@@ -68,8 +68,11 @@ DYNAMIC_IDS_MAP = {
 CORS_ORIGINS = [
     "http://localhost:4200",
     "http://localhost:3000",
+    "http://localhost:5000",          # <-- Добавлено для локального Docker
+    "http://localhost:8000",          # <-- Python service напрямую
     "https://rvm-auto-admin.xyz",     # <-- Твой домен
-    "https://www.rvm-auto-admin.xyz"
+    "https://www.rvm-auto-admin.xyz",
+    "*",                              # <-- Разрешить всё (для отладки)
 ]
 BASE_URL_999 = "https://partners-api.999.md"
 # Путь к файлам данных
