@@ -3,6 +3,7 @@ API роутер для создания объявлений на 999.md.
 """
 import httpx, json
 import re
+import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -155,6 +156,29 @@ def format_feature_value(feat: FeatureValue) -> Optional[Dict[str, Any]]:
     return {"id": feature_id, "value": value}
 
 
+def convert_localhost_to_docker(url: str) -> str:
+    """
+    Преобразует localhost URL в Docker-совместимый URL.
+    Внутри Docker сети localhost не работает — нужно использовать имя сервиса.
+    
+    http://localhost:5000/uploads/... -> http://postiz:5000/uploads/...
+    """
+    # Заменяем localhost на имя контейнера postiz
+    docker_url = url.replace("http://localhost:5000", "http://postiz:5000")
+    docker_url = docker_url.replace("http://127.0.0.1:5000", "http://postiz:5000")
+    
+    # Также можно использовать переменную окружения для гибкости
+    internal_url = os.getenv("POSTIZ_INTERNAL_URL", "http://postiz:5000")
+    if "localhost:5000" in url or "127.0.0.1:5000" in url:
+        docker_url = url.replace("http://localhost:5000", internal_url)
+        docker_url = url.replace("http://127.0.0.1:5000", internal_url)
+    
+    if docker_url != url:
+        print(f"  🔄 URL преобразован: {url[:50]}... -> {docker_url[:50]}...")
+    
+    return docker_url
+
+
 async def upload_image_to_999(image_url: str, api_key: str) -> Optional[str]:
     """
     Загружает одно изображение на 999.md и возвращает его ID/имя.
@@ -168,11 +192,14 @@ async def upload_image_to_999(image_url: str, api_key: str) -> Optional[str]:
         или None при ошибке
     """
     try:
+        # Преобразуем localhost URL в Docker-совместимый
+        docker_url = convert_localhost_to_docker(image_url)
+        
         async with httpx.AsyncClient() as client:
             # 1. Скачиваем изображение по URL
-            print(f"  📥 Скачиваем: {image_url[:60]}...")
+            print(f"  📥 Скачиваем: {docker_url[:60]}...")
             
-            img_response = await client.get(image_url, timeout=30.0, follow_redirects=True)
+            img_response = await client.get(docker_url, timeout=30.0, follow_redirects=True)
             if img_response.status_code != 200:
                 print(f"  ❌ Не удалось скачать изображение: {img_response.status_code}")
                 return None
