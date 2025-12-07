@@ -1,13 +1,22 @@
-# Замени этот домен на свой!
-rvm-auto-admin.xyz  {
-    
-    # 1. Настраиваем маршрут для Python-сервиса (чтобы фронтенд мог к нему обращаться)
-    # Все запросы на https://your-domain.com/ai-api/... пойдут в Python
+# Убрали "http://", теперь Caddy сам включит HTTPS
+rvm-auto-admin.xyz {
+
+    # ЭТА СТРОКА ВАЖНА:
+    # Она говорит Caddy: "Создай локальный сертификат и не пытайся стучаться в Let's Encrypt TODO: убрать на проде"
+    # TODO: убрать на проде
+    #tls internal
+
+    # Логирование (полезно для отладки)
+    log {
+        output stdout
+    }
+
+    # 1. Python сервис
     handle_path /ai-api/* {
         reverse_proxy postiz-python-service:8000
     }
 
-    # 2. Все остальные запросы идут на основной сайт (Postiz)
+    # 2. Основной сайт (Postiz)
     handle {
         reverse_proxy postiz:5000
     }
