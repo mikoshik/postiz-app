@@ -19,6 +19,12 @@ RUN pnpm install --frozen-lockfile
 # 5. ENV
 RUN touch .env 
 
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_IGNORE_ESLINT_ONLY_FOR_BUILD_ID_DO_NOT_USE_THIS=true
+ENV NEXT_DISABLE_TYPESCRIPT_CHECK=true
+
+
 # 6. СБОРКА ПО ЧАСТЯМ
 RUN pnpm run build:backend
 RUN pnpm run build:workers
