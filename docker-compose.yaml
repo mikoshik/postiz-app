@@ -30,8 +30,8 @@ services:
       NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.xyz/api"
       PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
       JWT_SECRET: "local-test-secret-key-12345"
-      DATABASE_URL: "postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local"
-      REDIS_URL: "redis://postiz-redis:6379"
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
       BACKEND_INTERNAL_URL: "http://localhost:3000"
       IS_GENERAL: "true"
       DISABLE_REGISTRATION: "false"
