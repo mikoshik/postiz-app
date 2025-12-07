@@ -58,9 +58,8 @@ services:
       
       # === ЛОГИ (для отладки) ===
       - ./logs/nginx:/var/log/nginx
-      
       # === PRISMA ===
-      - ./libraries/nestjs-libraries/src/database/prisma:/app/libraries/nestjs-libraries/src/database/prisma
+      - ./libraries/nestjs-libraries/src/database/prisma:./libraries/nestjs-libraries/src/database/prisma
 
     # УДАЛЕНО: Секция ports удалена, чтобы избежать конфликта с Caddy.
     networks:
