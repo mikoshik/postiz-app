@@ -15,7 +15,7 @@ module.exports = {
         args: "start apps/frontend -p 4200",
         env: {
           NODE_ENV: "production",
-          HOSTNAME: "0.0.0.0",
+          HOSTNAME: "0.0.0.0"
         },
       },
       {

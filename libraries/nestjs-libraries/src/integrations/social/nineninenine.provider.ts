@@ -102,7 +102,7 @@ export class NineNineNine extends SocialAbstract implements SocialProvider {
     postDetails: PostDetails[],
     integration: Integration
   ): Promise<PostResponse[]> {
-    const PYTHON_API_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
+    const PYTHON_API_URL = process.env.NEXT_PUBLIC_PYTHON_SERVICE_URL || 'https://rvm-auto-admin.xyz/ai-api';
     
     console.log('[NineNineNine.post] Начало публикации...');
     console.log('[NineNineNine.post] postDetails count:', postDetails.length);

@@ -12,11 +12,15 @@ services:
       - caddy_data:/data # Хранилище сертификатов
       - caddy_config:/config
     networks:
-      - postiz-network
+      postiz-network:
+          aliases:            # Важно
+            - rvm-auto-admin.xyz
     depends_on:
       # Зависимость от обоих сервисов
       - postiz
       - postiz-python-service
+
+
 
   # === ОСНОВНОЕ ПРИЛОЖЕНИЕ ===
   postiz:
@@ -30,8 +34,8 @@ services:
       NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.xyz/api"
       PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
       JWT_SECRET: "local-test-secret-key-12345"
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
+      DATABASE_URL: "postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local"
+      REDIS_URL: "redis://postiz-redis:6379"
       BACKEND_INTERNAL_URL: "http://localhost:3000"
       IS_GENERAL: "true"
       DISABLE_REGISTRATION: "false"
@@ -45,6 +49,8 @@ services:
       TIKTOK_CLIENT_ID: "${TIKTOK_CLIENT_ID}"
       TIKTOK_CLIENT_SECRET: "${TIKTOK_CLIENT_SECRET}"
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"  # <--- ДОБАВЬ ЭТО (Разрешает любые SSL сертификаты) # TODO: убрать на проде 
+      
 
     volumes:
       # === ДАННЫЕ ===
@@ -115,6 +121,7 @@ services:
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
       NINE_API_KEY: "${NINE_API_KEY}"
       PYTHONUNBUFFERED: "1"
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --root-path /ai-api
     # УДАЛЕНО: Секция ports удалена, чтобы избежать конфликта с Caddy.
     networks:
       - postiz-network
