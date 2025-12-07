@@ -25,9 +25,9 @@ services:
     restart: always
     environment:
       # Переменные окружения (оставлены как в вашем файле)
-      MAIN_URL: "https://rvm-auto-admin.online"
-      FRONTEND_URL: "https://rvm-auto-admin.online"
-      NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.online/api"
+      MAIN_URL: "https://rvm-auto-admin.xyz"
+      FRONTEND_URL: "https://rvm-auto-admin.xyz"
+      NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.xyz/api"
       PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
       JWT_SECRET: "local-test-secret-key-12345"
       DATABASE_URL: "postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local"
