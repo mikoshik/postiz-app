@@ -27,29 +27,38 @@ services:
     image: hiroxito/postiz-app-rvm:latest
     container_name: postiz
     restart: always
+    env_file:
+      - .env
     environment:
       # Переменные окружения (оставлены как в вашем файле)
+      # URL 
       MAIN_URL: "https://rvm-auto-admin.xyz"
       FRONTEND_URL: "https://rvm-auto-admin.xyz"
       NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.xyz/api"
       PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
-      JWT_SECRET: "local-test-secret-key-12345"
+      BACKEND_INTERNAL_URL: "http://localhost:3000"
+      # База данных и кэш
       DATABASE_URL: "postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local"
       REDIS_URL: "redis://postiz-redis:6379"
-      BACKEND_INTERNAL_URL: "http://localhost:3000"
-      IS_GENERAL: "true"
-      DISABLE_REGISTRATION: ${DISABLE_REGISTRATION}
-      STORAGE_PROVIDER: "local"
-      UPLOAD_DIRECTORY: "/uploads"
-      NEXT_PUBLIC_UPLOAD_DIRECTORY: "/uploads"
-      TELEGRAM_BOT_NAME: "${TELEGRAM_BOT_NAME}"
-      TELEGRAM_TOKEN: "${TELEGRAM_TOKEN}"
-      FACEBOOK_APP_ID: "${FACEBOOK_APP_ID}"
-      FACEBOOK_APP_SECRET: "${FACEBOOK_APP_SECRET}"
-      TIKTOK_CLIENT_ID: "${TIKTOK_CLIENT_ID}"
-      TIKTOK_CLIENT_SECRET: "${TIKTOK_CLIENT_SECRET}"
-      OPENAI_API_KEY: "${OPENAI_API_KEY}"
-      NODE_TLS_REJECT_UNAUTHORIZED: "0"  # <--- ДОБАВЬ ЭТО (Разрешает любые SSL сертификаты) # TODO: убрать на проде 
+      # Прочие настройки
+      # IS_GENERAL: "true"
+      # JWT_SECRET: "local-test-secret-key-12345"
+      # DISABLE_REGISTRATION: ${DISABLE_REGISTRATION}
+      NODE_TLS_REJECT_UNAUTHORIZED: "0" # <--- ДОБАВЬ ЭТО (Разрешает любые SSL сертификаты) # TODO: убрать на проде 
+      # STORAGE_PROVIDER: "local"
+      # UPLOAD_DIRECTORY: "/uploads"
+      # NEXT_PUBLIC_UPLOAD_DIRECTORY: "/uploads"
+
+      # Social Media API Keys
+      # TELEGRAM_BOT_NAME: "${TELEGRAM_BOT_NAME}"
+      # TELEGRAM_TOKEN: "${TELEGRAM_TOKEN}"
+      # FACEBOOK_APP_ID: "${FACEBOOK_APP_ID}"
+      # FACEBOOK_APP_SECRET: "${FACEBOOK_APP_SECRET}"
+      # TIKTOK_CLIENT_ID: "${TIKTOK_CLIENT_ID}"
+      # TIKTOK_CLIENT_SECRET: "${TIKTOK_CLIENT_SECRET}"
+      # OPENAI_API_KEY: "${OPENAI_API_KEY}"
+        
+      # Load environment variables from .env file, with explicit values taking priority
       
 
     volumes:
