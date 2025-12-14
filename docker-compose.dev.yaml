@@ -1,0 +1,149 @@
+services:
+  # === ВЕБ-СЕРВЕР (ВХОДНАЯ ДВЕРЬ) ===
+  caddy:
+    image: caddy:alpine
+    container_name: postiz-caddy
+    restart: always
+    ports:
+      - "80:80"     # HTTP (Внешний доступ)
+      - "443:443"   # HTTPS (Внешний доступ)
+    volumes:
+      - ./Caddyfile:/etc/caddy/CaddyfileDev # Конфиг
+      - caddy_data:/data # Хранилище сертификатов
+      - caddy_config:/config
+    networks:
+      postiz-network:
+          aliases:            # Важно
+            - rvm-auto-admin.xyz
+    depends_on:
+      # Зависимость от обоих сервисов
+      - postiz
+      - postiz-python-service
+
+
+
+  # === ОСНОВНОЕ ПРИЛОЖЕНИЕ ===
+  postiz:
+    image: hiroxito/postiz-app-rvm:latest
+    container_name: postiz
+    restart: always
+    env_file:
+      - .env
+    environment:
+      # Переменные окружения (оставлены как в вашем файле)
+      # URL 
+      MAIN_URL: "https://rvm-auto-admin.xyz"
+      FRONTEND_URL: "https://rvm-auto-admin.xyz"
+      NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.xyz/api"
+      PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
+      BACKEND_INTERNAL_URL: "http://localhost:3000"
+      # База данных и кэш
+      DATABASE_URL: "postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local"
+      REDIS_URL: "redis://postiz-redis:6379"
+      # Прочие настройки
+      # IS_GENERAL: "true"
+      # JWT_SECRET: "local-test-secret-key-12345"
+      # DISABLE_REGISTRATION: ${DISABLE_REGISTRATION}
+      NODE_TLS_REJECT_UNAUTHORIZED: "0" # <--- ДОБАВЬ ЭТО (Разрешает любые SSL сертификаты) # TODO: убрать на проде 
+      # STORAGE_PROVIDER: "local"
+      # UPLOAD_DIRECTORY: "/uploads"
+      # NEXT_PUBLIC_UPLOAD_DIRECTORY: "/uploads"
+
+      # Social Media API Keys
+      # TELEGRAM_BOT_NAME: "${TELEGRAM_BOT_NAME}"
+      # TELEGRAM_TOKEN: "${TELEGRAM_TOKEN}"
+      # FACEBOOK_APP_ID: "${FACEBOOK_APP_ID}"
+      # FACEBOOK_APP_SECRET: "${FACEBOOK_APP_SECRET}"
+      # TIKTOK_CLIENT_ID: "${TIKTOK_CLIENT_ID}"
+      # TIKTOK_CLIENT_SECRET: "${TIKTOK_CLIENT_SECRET}"
+      # OPENAI_API_KEY: "${OPENAI_API_KEY}"
+        
+      # Load environment variables from .env file, with explicit values taking priority
+      
+
+    volumes:
+      # === ДАННЫЕ ===
+      - postiz-config:/config/
+      - postiz-uploads:/uploads/
+      
+      # === ИСПРАВЛЕНИЕ ОШИБКИ NGINX (Монтируем исправленный файл) ===
+      # Это решает проблему 'getpwnam("www") failed'
+      - ./var/docker/nginx.conf:/etc/nginx/nginx.conf
+      - ./ecosystem.config.js:/app/ecosystem.config.js
+      
+      # === ЛОГИ (для отладки) ===
+      - ./logs/nginx:/var/log/nginx
+      # === PRISMA ===
+      - ./libraries/nestjs-libraries/src/database/prisma:/app/libraries/nestjs-libraries/src/database/prisma
+
+    # УДАЛЕНО: Секция ports удалена, чтобы избежать конфликта с Caddy.
+    networks:
+      - postiz-network
+    depends_on:
+      postiz-postgres:
+        condition: service_healthy
+      postiz-redis:
+        condition: service_healthy
+
+  # === БАЗА ДАННЫХ ===
+  postiz-postgres:
+    image: postgres:17-alpine
+    container_name: postiz-postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postiz-password
+      POSTGRES_USER: postiz-user
+      POSTGRES_DB: postiz-db-local
+    volumes:
+      - postgres-volume:/var/lib/postgresql/data
+    networks:
+      - postiz-network
+    healthcheck:
+      test: pg_isready -U postiz-user -d postiz-db-local
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # === КЭШ ===
+  postiz-redis:
+    image: redis:7.2
+    container_name: postiz-redis
+    restart: always
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - postiz-redis-data:/data
+    networks:
+      - postiz-network
+
+  # === PYTHON СЕРВИС ===
+  postiz-python-service:
+    build:
+      context: ./python_service
+      dockerfile: Dockerfile
+    container_name: postiz-python-service
+    restart: always
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      NINE_API_KEY: "${NINE_API_KEY}"
+      PYTHONUNBUFFERED: "1"
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --root-path /ai-api
+    # УДАЛЕНО: Секция ports удалена, чтобы избежать конфликта с Caddy.
+    networks:
+      - postiz-network
+
+volumes:
+  # === ИМЕНОВАННЫЕ ТОМА ДЛЯ ВСЕХ СЕРВИСОВ ===
+  postgres-volume:
+  postiz-redis-data:
+  postiz-config:
+  postiz-uploads:
+  # Добавлены недостающие тома для Caddy (Решает ошибку "undefined volume caddy_data")
+  caddy_data:
+  caddy_config:
+
+networks:
+  postiz-network:
