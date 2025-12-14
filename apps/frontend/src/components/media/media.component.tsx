@@ -152,11 +152,6 @@ export const ShowMediaBoxModal: FC = () => {
     </div>
   );
 };
-export const showMediaBox = (
-  callback: (params: { id: string; path: string }) => void
-) => {
-  showModalEmitter.emit('show-modal', callback);
-};
 const CHUNK_SIZE = 1024 * 1024;
 export const MediaBox: FC<{
   setMedia: (params: { id: string; path: string }[]) => void;
@@ -169,8 +164,6 @@ export const MediaBox: FC<{
   const setActivateExitButton = useLaunchStore((e) => e.setActivateExitButton);
   const fetch = useFetch();
   const mediaDirectory = useMediaDirectory();
-  const [page, setPage] = useState(0);
-  const [pages, setPages] = useState(0);
   const [selectedMedia, setSelectedMedia] = useState<Media[]>([]);
   const ref = useRef<any>(null);
 
@@ -180,10 +173,6 @@ export const MediaBox: FC<{
       setActivateExitButton(true);
     };
   }, []);
-
-  const loadMedia = useCallback(async () => {
-    return (await fetch(`/media?page=${page + 1}`)).json();
-  }, [page]);
 
   const setNewMedia = useCallback(
     (media: Media) => () => {
@@ -212,10 +201,10 @@ export const MediaBox: FC<{
         return;
       }
       setSelectedMedia((currentMedia) => [...currentMedia, ...media]);
-      // closeModal();
     },
     [selectedMedia]
   );
+
   const addMedia = useCallback(async () => {
     if (props.standalone) {
       return;
@@ -224,27 +213,22 @@ export const MediaBox: FC<{
     setMedia(selectedMedia);
     closeModal();
   }, [selectedMedia]);
-  const { data, mutate } = useSWR(`get-media-${page}`, loadMedia);
 
   const finishUpload = useCallback(
     async (res: any) => {
-      const lastMedia = mediaList?.[0]?.id;
-      const newData = await mutate();
-      const untilLastMedia = newData.results.findIndex(
-        (f: any) => f.id === lastMedia
-      );
-      const onlyNewMedia = newData.results.slice(
-        0,
-        untilLastMedia === -1 ? newData.results.length : untilLastMedia
-      );
+      // res - это массив загруженных файлов с id и path
+      const uploadedFiles = Array.isArray(res) ? res : [];
 
-      if (props.standalone) {
-        return;
+      if (uploadedFiles.length > 0) {
+        // Добавляем новые файлы в список
+        setListMedia((prev) => [...uploadedFiles, ...prev]);
+        
+        if (!props.standalone) {
+          addNewMedia(uploadedFiles as Media[])();
+        }
       }
-
-      addNewMedia(onlyNewMedia)();
     },
-    [mutate, addNewMedia, mediaList, selectedMedia]
+    [addNewMedia, props.standalone]
   );
 
   const dragAndDrop = useCallback(
@@ -271,7 +255,7 @@ export const MediaBox: FC<{
             const isImage = file.type.startsWith('image/');
             const isVideo = file.type.startsWith('video/');
             if (isImage || isVideo) {
-              files.push(file); // Collect images or videos
+              files.push(file);
             }
           }
         }
@@ -291,8 +275,9 @@ export const MediaBox: FC<{
         autoProceed: true,
       });
     },
-    [mutate, addNewMedia, mediaList, selectedMedia]
+    []
   );
+
   const removeItem = useCallback(
     (media: Media) => async (e: any) => {
       e.stopPropagation();
@@ -309,21 +294,14 @@ export const MediaBox: FC<{
       await fetch(`/media/${media.id}`, {
         method: 'DELETE',
       });
-      mutate();
+      // Удаляем из локального списка
+      setListMedia((prev) => prev.filter((m) => m.id !== media.id));
+      setSelectedMedia((prev) => prev.filter((m) => m.id !== media.id));
     },
-    [mutate]
+    []
   );
 
   const refNew = useRef(null);
-
-  useEffect(() => {
-    if (data?.pages) {
-      setPages(data.pages);
-    }
-    if (data?.results && data?.results?.length) {
-      setListMedia([...data.results]);
-    }
-  }, [data]);
 
   useEffect(() => {
     refNew?.current?.scrollIntoView({
@@ -401,59 +379,42 @@ export const MediaBox: FC<{
                 )}
               </div>
 
-              {!!mediaList.length && (
-                <>
-                  <div className="flex absolute h-[57px] w-full start-0 top-0 rounded-lg transition-all group text-sm font-semibold bg-transparent text-gray-800 hover:bg-gray-100 focus:text-primary-500">
-                    <div className="relative flex flex-1 pe-[55px] gap-2 items-center justify-center">
-                      <div className="flex-1" />
-                      <MultipartFileUploader
-                        uppRef={ref}
-                        onUploadSuccess={finishUpload}
-                        allowedFileTypes={
-                          type === 'video'
-                            ? 'video/mp4'
-                            : type === 'image'
-                            ? 'image/*'
-                            : 'image/*,video/mp4'
-                        }
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
+              <div className="flex absolute h-[57px] w-full start-0 top-0 rounded-lg transition-all group text-sm font-semibold bg-transparent text-gray-800 hover:bg-gray-100 focus:text-primary-500">
+                <div className="relative flex flex-1 pe-[55px] gap-2 items-center justify-center">
+                  <div className="flex-1" />
+                  <MultipartFileUploader
+                    uppRef={ref}
+                    onUploadSuccess={finishUpload}
+                    allowedFileTypes={
+                      type === 'video'
+                        ? 'video/mp4'
+                        : type === 'image'
+                        ? 'image/*'
+                        : 'image/*,video/mp4'
+                    }
+                  />
+                </div>
+              </div>
             </div>
             <div
               className={clsx(
                 'flex flex-wrap gap-[10px] mt-[35px] pt-[20px]',
-                !!mediaList.length &&
-                  'justify-center items-center text-textColor'
+                'justify-center items-center text-textColor'
               )}
             >
               {!mediaList.length ? (
                 <div className="flex flex-col text-center items-center justify-center mx-auto">
                   <div>
                     {t(
-                      'you_don_t_have_any_assets_yet',
-                      "You don't have any assets yet."
+                      'upload_new_files_to_get_started',
+                      'Upload new files to get started'
                     )}
                   </div>
                   <div>
                     {t(
-                      'click_the_button_below_to_upload_one',
-                      'Click the button below to upload one'
+                      'click_the_upload_button_or_drag_drop',
+                      'Click the Upload button or drag & drop files'
                     )}
-                  </div>
-                  <div className="mt-[10px] justify-center items-center flex flex-col-reverse gap-[10px]">
-                    <MultipartFileUploader
-                      onUploadSuccess={finishUpload}
-                      allowedFileTypes={
-                        type === 'video'
-                          ? 'video/mp4'
-                          : type === 'image'
-                          ? 'image/*'
-                          : 'image/*,video/mp4'
-                      }
-                    />
                   </div>
                 </div>
               ) : (
@@ -513,9 +474,6 @@ export const MediaBox: FC<{
                   </div>
                 ))}
             </div>
-            {(pages || 0) > 1 && (
-              <Pagination current={page} totalPages={pages} setPage={setPage} />
-            )}
           </div>
         </DropFiles>
       </div>
