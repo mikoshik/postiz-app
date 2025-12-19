@@ -41,7 +41,7 @@ services:
       DATABASE_URL: "postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local"
       REDIS_URL: "redis://postiz-redis:6379"
       NODE_TLS_REJECT_UNAUTHORIZED: "0" # <--- ДОБАВЬ ЭТО (Разрешает любые SSL сертификаты) # TODO: убрать на проде 
-
+      NTBA_FIX_350: 1
     volumes:
       # === ДАННЫЕ ===
       - postiz-config:/config/
