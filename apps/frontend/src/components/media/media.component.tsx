@@ -41,6 +41,17 @@ const Polonto = dynamic(
   () => import('@gitroom/frontend/components/launches/polonto')
 );
 const showModalEmitter = new EventEmitter();
+
+export const showMediaBox = (
+  callback: (params: { id: string; path: string }) => void
+) => {
+  showModalEmitter.emit('show-modal', (values: { id: string; path: string }[]) => {
+    if (values.length > 0) {
+      callback(values[0]);
+    }
+  });
+};
+
 export const Pagination: FC<{
   current: number;
   totalPages: number;

@@ -26,10 +26,10 @@ ENV NEXT_DISABLE_TYPESCRIPT_CHECK=true
 
 
 # 6. СБОРКА ПО ЧАСТЯМ
+RUN pnpm run build:frontend
 RUN pnpm run build:backend
 RUN pnpm run build:workers
 RUN pnpm run build:cron
-RUN pnpm run build:frontend
 
 
 # 8. Чистим dev зависимости
