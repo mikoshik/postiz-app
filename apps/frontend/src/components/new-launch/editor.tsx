@@ -7,7 +7,6 @@ import React, {
   useMemo,
   useRef,
   useState,
-  ClipboardEvent,
   forwardRef,
   useImperativeHandle,
   Fragment,
@@ -59,6 +58,70 @@ import { suggestion } from '@gitroom/frontend/components/new-launch/mention.comp
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { AComponent } from '@gitroom/frontend/components/new-launch/a.component';
 import { capitalize } from 'lodash';
+import HardBreak from '@tiptap/extension-hard-break';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { EditorView } from '@tiptap/pm/view';
+
+// Extension to preserve line breaks when pasting plain text
+const PreserveLineBreaksOnPaste = Extension.create({
+  name: 'preserveLineBreaksOnPaste',
+
+  addProseMirrorPlugins() {
+    const editor = this.editor;
+    return [
+      new Plugin({
+        key: new PluginKey('preserveLineBreaksOnPaste'),
+        props: {
+          handlePaste: (view, event) => {
+            const clipboardData = event.clipboardData;
+            if (!clipboardData) return false;
+
+            // Check if there's HTML content - if so, let TipTap handle it normally
+            const html = clipboardData.getData('text/html');
+            if (html && html.trim()) {
+              return false;
+            }
+
+            // Get plain text
+            const text = clipboardData.getData('text/plain');
+            if (!text) return false;
+
+            // Convert line breaks to proper HTML structure
+            const lines = text.split(/\r?\n/);
+            
+            // Build content with paragraphs for each line
+            const content = lines.map((line: string) => {
+              if (line === '') {
+                // Empty line becomes an empty paragraph
+                return { type: 'paragraph' };
+              }
+              return {
+                type: 'paragraph',
+                content: [{ type: 'text', text: line }],
+              };
+            });
+
+            // Insert the content
+            const { tr } = view.state;
+            const { from, to } = view.state.selection;
+            
+            // Create a slice from the content
+            const fragment = editor.schema.nodeFromJSON({
+              type: 'doc',
+              content,
+            }).content;
+
+            tr.replaceWith(from, to, fragment);
+            view.dispatch(tr);
+
+            event.preventDefault();
+            return true;
+          },
+        },
+      }),
+    ];
+  },
+});
 
 const InterceptBoldShortcut = Extension.create({
   name: 'preventBoldWithUnderline',
@@ -759,6 +822,8 @@ export const OnlyEditor = forwardRef<
       InterceptUnderlineShortcut,
       BulletList,
       ListItem,
+      HardBreak,
+      PreserveLineBreaksOnPaste,
       ...(editorType === 'html' || editorType === 'markdown'
         ? [
             Link.configure({
