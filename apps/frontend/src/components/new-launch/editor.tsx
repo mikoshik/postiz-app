@@ -86,19 +86,43 @@ const PreserveLineBreaksOnPaste = Extension.create({
             const text = clipboardData.getData('text/plain');
             if (!text) return false;
 
-            // Convert line breaks to proper HTML structure
-            const lines = text.split(/\r?\n/);
+            // Split by double newlines first (paragraph breaks)
+            const paragraphs = text.split(/\n\s*\n/);
             
-            // Build content with paragraphs for each line
-            const content = lines.map((line: string) => {
-              if (line === '') {
-                // Empty line becomes an empty paragraph
-                return { type: 'paragraph' };
+            // Build content with paragraphs, using hardBreak for single line breaks within paragraphs
+            const content: any[] = [];
+            
+            paragraphs.forEach((paragraph, pIndex) => {
+              if (paragraph.trim() === '') {
+                // Empty paragraph
+                content.push({ type: 'paragraph' });
+                return;
               }
-              return {
-                type: 'paragraph',
-                content: [{ type: 'text', text: line }],
-              };
+              
+              // Split paragraph by single newlines
+              const lines = paragraph.split(/\n/);
+              
+              // Build paragraph content with hardBreaks between lines
+              const paragraphContent: any[] = [];
+              
+              lines.forEach((line, lIndex) => {
+                if (line) {
+                  paragraphContent.push({ type: 'text', text: line });
+                }
+                // Add hardBreak after each line except the last one
+                if (lIndex < lines.length - 1) {
+                  paragraphContent.push({ type: 'hardBreak' });
+                }
+              });
+              
+              if (paragraphContent.length > 0) {
+                content.push({
+                  type: 'paragraph',
+                  content: paragraphContent,
+                });
+              } else {
+                content.push({ type: 'paragraph' });
+              }
             });
 
             // Insert the content
