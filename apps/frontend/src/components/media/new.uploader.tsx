@@ -13,8 +13,95 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { uniq } from 'lodash';
-// @ts-ignore
-import heic2any from 'heic2any';
+
+// Python service URL for HEIC conversion
+const PYTHON_SERVICE_URL = process.env.NEXT_PUBLIC_PYTHON_SERVICE_URL || 'http://localhost:8000';
+
+// Helper function to convert HEIC using Python backend service
+async function convertHeicViaPython(blob: Blob, filename: string): Promise<Blob> {
+  const formData = new FormData();
+  formData.append('file', blob, filename);
+  
+  const response = await fetch(`${PYTHON_SERVICE_URL}/image/convert-heic?quality=90&output_format=JPEG`, {
+    method: 'POST',
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+  
+  return await response.blob();
+}
+
+// Helper function to convert HEIC to JPEG with Python backend as primary method
+async function convertHeicToJpeg(blob: Blob, filename: string): Promise<Blob> {
+  // Method 1: Try Python backend service (most reliable)
+  try {
+    console.log('Trying Python service conversion...');
+    const result = await convertHeicViaPython(blob, filename);
+    console.log('Python service conversion successful');
+    return result;
+  } catch (pythonError: any) {
+    console.warn('Python service failed:', pythonError?.message);
+  }
+
+  // Method 2: Try Canvas API (works if browser supports HEIC natively - Safari)
+  try {
+    console.log('Trying Canvas API conversion...');
+    const result = await convertUsingCanvas(blob, 0.9);
+    console.log('Canvas conversion successful');
+    return result;
+  } catch (canvasError: any) {
+    console.warn('Canvas conversion failed:', canvasError?.message);
+  }
+
+  throw new Error('All HEIC conversion methods failed. Please make sure Python service is running or convert the file manually.');
+}
+
+// Helper function to convert image using Canvas API (works if browser supports HEIC natively)
+async function convertUsingCanvas(blob: Blob, quality: number = 0.9): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+      
+      ctx.drawImage(img, 0, 0);
+      
+      canvas.toBlob(
+        (jpegBlob) => {
+          if (jpegBlob) {
+            resolve(jpegBlob);
+          } else {
+            reject(new Error('Canvas toBlob failed'));
+          }
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load image for canvas conversion'));
+    };
+    
+    img.src = url;
+  });
+}
 
 export function MultipartFileUploader({
   onUploadSuccess,
@@ -104,17 +191,8 @@ export function useUppyUploader(props: {
             try {
               toast.show('Converting HEIC to JPG...', 'warning');
               
-              // Convert HEIC to JPG using heic2any
-              const convertedBlob = await heic2any({
-                blob: file.data as Blob,
-                toType: 'image/jpeg',
-                quality: 0.9,
-              });
-              
-              // heic2any can return array or single blob
-              const jpegBlob = Array.isArray(convertedBlob) 
-                ? convertedBlob[0] 
-                : convertedBlob;
+              // Convert HEIC to JPG using Python service
+              const convertedBlob = await convertHeicToJpeg(file.data as Blob, file.name);
               
               // Create new filename with .jpg extension
               const newFileName = file.name
@@ -126,7 +204,7 @@ export function useUppyUploader(props: {
               uppy2.addFile({
                 name: newFileName,
                 type: 'image/jpeg',
-                data: jpegBlob,
+                data: convertedBlob,
                 source: 'Local',
                 isRemote: false,
               });
