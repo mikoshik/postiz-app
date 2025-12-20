@@ -150,12 +150,23 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
     for (const message of postDetails) {
       let messageId: number | null = null;
       const mediaFiles = message.media || [];
-      const text = striptags(message.message || '', ['u', 'strong', 'p'])
-        .replace(/<strong>/g, '<b>')
-        .replace(/<\/strong>/g, '</b>')
-        .replace(/<p>(.*?)<\/p>/g, '$1\n');
-
-      console.log(text);
+      
+      // Process text: convert HTML to Telegram-compatible format
+      let text = (message.message || '');
+      
+      // First, handle line breaks and paragraphs BEFORE stripping tags
+      text = text.replace(/<br\s*\/?>/gi, '\n');
+      text = text.replace(/<\/p>\s*<p[^>]*>/gi, '\n\n');
+      text = text.replace(/<p[^>]*><\/p>/gi, '\n');
+      text = text.replace(/<p[^>]*>/gi, '');
+      text = text.replace(/<\/p>/gi, '\n');
+      text = text
+        .replace(/<strong>/gi, '<b>')
+        .replace(/<\/strong>/gi, '</b>');
+      text = striptags(text, ['b', 'u', 'i', 'a', 'code', 'pre']);
+      text = text.replace(/\n{3,}/g, '\n\n');
+      text = text.trim();
+      
       // check if media is local to modify url
       const processedMedia = mediaFiles.map((media) => {
         let mediaUrl = media.path;
