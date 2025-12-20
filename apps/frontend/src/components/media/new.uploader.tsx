@@ -347,13 +347,19 @@ export function useUppyUploader(props: {
     uppy2.on('complete', async (result) => {
       if (storageProvider === 'local') {
         setLocked(false);
-        onUploadSuccess(result.successful.map((p) => p.response.body));
+        onUploadSuccess(result.successful
+          .filter((p) => p.response?.body)
+          .map((p) => p.response.body));
         return;
       }
 
       if (transloadit.length > 0) {
         // @ts-ignore
-        const allRes = result.transloadit[0].results;
+        const allRes = result.transloadit?.[0]?.results;
+        if (!allRes) {
+          setLocked(false);
+          return;
+        }
         const toSave = uniq<string>(
           (allRes[Object.keys(allRes)[0]] || []).flatMap((item: any) =>
             item.url.split('/').pop()
@@ -379,7 +385,9 @@ export function useUppyUploader(props: {
       }
 
       setLocked(false);
-      onUploadSuccess(result.successful.map((p) => p.response.body.saved));
+      onUploadSuccess(result.successful
+        .filter((p) => p.response?.body?.saved)
+        .map((p) => p.response.body.saved));
     });
     uppy2.on('upload-success', (file, response) => {
       // @ts-ignore
@@ -387,7 +395,7 @@ export function useUppyUploader(props: {
         // @ts-ignore
         progress: uppy2.getState().files[file.id].progress,
         // @ts-ignore
-        uploadURL: response.body.Location,
+        uploadURL: response?.body?.Location,
         response: response,
         isPaused: false,
       });
