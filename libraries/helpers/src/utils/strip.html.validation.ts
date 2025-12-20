@@ -216,9 +216,13 @@ export const stripHtmlValidation = (
     .replace(/&nbsp;/gi, ' ')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
-    .replace(/^<p[^>]*>/i, '')
-    .replace(/<p[^>]*>/gi, '\n')
-    .replace(/<\/p>/gi, '');
+    .replace(/<br\s*\/?>/gi, '\n') // Convert <br> tags to newlines
+    .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n') // Replace </p><p> with double newline (paragraph break)
+    .replace(/<p[^>]*><\/p>/gi, '\n') // Empty paragraphs become single newline
+    .replace(/^<p[^>]*>/i, '') // Remove first opening <p>
+    .replace(/<p[^>]*>/gi, '\n\n') // Replace remaining opening <p> with double newline
+    .replace(/<\/p>$/gi, '') // Remove last closing </p>
+    .replace(/<\/p>/gi, ''); // Remove remaining closing </p>
 
   if (none) {
     return striptags(html).replace(/&gt;/gi, '>').replace(/&lt;/gi, '<');
