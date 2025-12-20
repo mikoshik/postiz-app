@@ -13,6 +13,8 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { uniq } from 'lodash';
+// @ts-ignore
+import heic2any from 'heic2any';
 
 export function MultipartFileUploader({
   onUploadSuccess,
@@ -67,13 +69,78 @@ export function useUppyUploader(props: {
   const { onUploadSuccess, allowedFileTypes } = props;
   const fetch = useFetch();
   return useMemo(() => {
+    // Add HEIC/HEIF support when images are allowed (for iPhone camera photos)
+    const allowedTypesWithHeic = allowedFileTypes
+      .split(',')
+      .flatMap((type) => {
+        if (type.trim() === 'image/*') {
+          return ['image/*', 'image/heic', 'image/heif', '.heic', '.heif'];
+        }
+        return [type];
+      });
+
     const uppy2 = new Uppy({
       autoProceed: true,
       restrictions: {
         // maxNumberOfFiles: 5,
-        allowedFileTypes: allowedFileTypes.split(','),
+        allowedFileTypes: allowedTypesWithHeic,
         maxFileSize: 1000000000, // Default 1GB, but we'll override with custom validation
       },
+    });
+
+    // HEIC to JPG converter preprocessor - must be first to convert before type validation
+    uppy2.addPreProcessor(async (fileIDs) => {
+      const files = uppy2.getFiles();
+      
+      for (const file of files) {
+        if (fileIDs.includes(file.id)) {
+          const isHeic = 
+            file.type === 'image/heic' || 
+            file.type === 'image/heif' ||
+            file.name?.toLowerCase().endsWith('.heic') ||
+            file.name?.toLowerCase().endsWith('.heif');
+          
+          if (isHeic && file.data) {
+            try {
+              toast.show('Converting HEIC to JPG...', 'warning');
+              
+              // Convert HEIC to JPG using heic2any
+              const convertedBlob = await heic2any({
+                blob: file.data as Blob,
+                toType: 'image/jpeg',
+                quality: 0.9,
+              });
+              
+              // heic2any can return array or single blob
+              const jpegBlob = Array.isArray(convertedBlob) 
+                ? convertedBlob[0] 
+                : convertedBlob;
+              
+              // Create new filename with .jpg extension
+              const newFileName = file.name
+                ?.replace(/\.heic$/i, '.jpg')
+                ?.replace(/\.heif$/i, '.jpg') || 'converted.jpg';
+              
+              // Remove old file and add converted one
+              uppy2.removeFile(file.id);
+              uppy2.addFile({
+                name: newFileName,
+                type: 'image/jpeg',
+                data: jpegBlob,
+                source: 'Local',
+                isRemote: false,
+              });
+              
+              toast.show('HEIC converted to JPG successfully!', 'success');
+            } catch (error) {
+              console.error('HEIC conversion error:', error);
+              toast.show('Failed to convert HEIC file. Please convert it manually to JPG/PNG.', 'warning');
+              uppy2.removeFile(file.id);
+              throw new Error('HEIC conversion failed');
+            }
+          }
+        }
+      }
     });
 
     // check for valid file types it can be something like this image/*,video/mp4.
