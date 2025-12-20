@@ -146,7 +146,15 @@ export const stripHtmlValidation = (
   const value = serialize(parseFragment(val));
 
   if (type === 'html') {
-    return striptags(convertMention(value, convertMentionFunction), [
+    // First convert <br> tags to newlines, then process other tags
+    const withLineBreaks = value
+      .replace(/<br\s*\/?>/gi, '\n') // Convert <br> to newline
+      .replace(/&amp;/gi, '&')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'");
+    
+    return striptags(convertMention(withLineBreaks, convertMentionFunction), [
       'ul',
       'li',
       'h1',
@@ -158,11 +166,7 @@ export const stripHtmlValidation = (
       'a',
     ])
       .replace(/&gt;/gi, '>')
-      .replace(/&lt;/gi, '<')
-      .replace(/&amp;/gi, '&')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'");
+      .replace(/&lt;/gi, '<');
   }
 
   if (type === 'markdown') {
