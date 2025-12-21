@@ -35,8 +35,6 @@ services:
       MAIN_URL: "https://rvm-auto-admin.xyz"
       FRONTEND_URL: "https://rvm-auto-admin.xyz"
       NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.xyz/api"
-      NEXT_PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
-      PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
       BACKEND_INTERNAL_URL: "http://localhost:3000"
       # База данных и кэш
       DATABASE_URL: "postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local"

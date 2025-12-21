@@ -15,14 +15,14 @@ import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { uniq } from 'lodash';
 
 // Python service URL for HEIC conversion
-const PYTHON_SERVICE_URL = process.env.NEXT_PUBLIC_PYTHON_SERVICE_URL || 'http://localhost:8000';
+const NEXT_PUBLIC_PYTHON_SERVICE_URL = process.env.NEXT_PUBLIC_PYTHON_SERVICE_URL || 'https://rvm-auto-admin.xyz/ai-api';
 
 // Helper function to convert HEIC using Python backend service
 async function convertHeicViaPython(blob: Blob, filename: string): Promise<Blob> {
   const formData = new FormData();
   formData.append('file', blob, filename);
   
-  const response = await fetch(`${PYTHON_SERVICE_URL}/image/convert-heic?quality=90&output_format=JPEG`, {
+  const response = await fetch(`${NEXT_PUBLIC_PYTHON_SERVICE_URL}/image/convert-heic?quality=90&output_format=JPEG`, {
     method: 'POST',
     body: formData,
   });
