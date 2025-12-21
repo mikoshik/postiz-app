@@ -68,3 +68,4 @@ python_service/venv
 /logs
 hosts — ярлык.lnk
 .env.development
+.env.product
