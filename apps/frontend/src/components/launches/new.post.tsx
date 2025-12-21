@@ -54,7 +54,7 @@ export const NewPost = () => {
       removeLayout: true,
       askClose: true,
       classNames: {
-        modal: 'w-[100%] max-w-[1400px] bg-transparent text-textColor',
+        modal: 'w-full bg-transparent text-textColor',
       },
       id: 'add-edit-modal',
       children: (
@@ -69,7 +69,7 @@ export const NewPost = () => {
           date={dayjs.utc(date).local()}
         />
       ),
-      size: '80%',
+      size: '100%',
       title: ``,
     });
   }, [integrations, sets]);
