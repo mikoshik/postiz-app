@@ -14,15 +14,17 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { uniq } from 'lodash';
 
-// Python service URL for HEIC conversion
-const NEXT_PUBLIC_PYTHON_SERVICE_URL = process.env.NEXT_PUBLIC_PYTHON_SERVICE_URL || 'https://rvm-auto-admin.xyz/ai-api';
+// Python service URL for media conversion
+const PYTHON_SERVICE_URL = process.env.NEXT_PUBLIC_PYTHON_SERVICE_URL || 'https://rvm-auto-admin.xyz/ai-api';
+
+// ============ HEIC IMAGE CONVERSION ============
 
 // Helper function to convert HEIC using Python backend service
 async function convertHeicViaPython(blob: Blob, filename: string): Promise<Blob> {
   const formData = new FormData();
   formData.append('file', blob, filename);
   
-  const response = await fetch(`${NEXT_PUBLIC_PYTHON_SERVICE_URL}/image/convert-heic?quality=90&output_format=JPEG`, {
+  const response = await fetch(`${PYTHON_SERVICE_URL}/image/convert-heic?quality=90&output_format=JPEG`, {
     method: 'POST',
     body: formData,
   });
@@ -39,12 +41,12 @@ async function convertHeicViaPython(blob: Blob, filename: string): Promise<Blob>
 async function convertHeicToJpeg(blob: Blob, filename: string): Promise<Blob> {
   // Method 1: Try Python backend service (most reliable)
   try {
-    console.log('Trying Python service conversion...');
+    console.log('Trying Python service HEIC conversion...');
     const result = await convertHeicViaPython(blob, filename);
-    console.log('Python service conversion successful');
+    console.log('Python service HEIC conversion successful');
     return result;
   } catch (pythonError: any) {
-    console.warn('Python service failed:', pythonError?.message);
+    console.warn('Python service HEIC conversion failed:', pythonError?.message);
   }
 
   // Method 2: Try Canvas API (works if browser supports HEIC natively - Safari)
@@ -103,6 +105,47 @@ async function convertUsingCanvas(blob: Blob, quality: number = 0.9): Promise<Bl
   });
 }
 
+// ============ VIDEO CONVERSION (MOV -> MP4) ============
+
+// Video formats that need conversion to MP4
+const VIDEO_FORMATS_TO_CONVERT = ['.mov', '.avi', '.mkv', '.webm', '.wmv', '.flv', '.m4v', '.3gp'];
+
+// Helper function to check if video needs conversion
+function needsVideoConversion(filename: string, mimeType: string): boolean {
+  const ext = filename?.toLowerCase().split('.').pop();
+  if (!ext) return false;
+  
+  // Check by extension
+  if (VIDEO_FORMATS_TO_CONVERT.includes(`.${ext}`)) {
+    return true;
+  }
+  
+  // Check by MIME type (iPhone MOV files)
+  if (mimeType === 'video/quicktime' || mimeType === 'video/x-quicktime') {
+    return true;
+  }
+  
+  return false;
+}
+
+// Helper function to convert video to MP4 using Python backend service
+async function convertVideoToMp4(blob: Blob, filename: string): Promise<Blob> {
+  const formData = new FormData();
+  formData.append('file', blob, filename);
+  
+  const response = await fetch(`${PYTHON_SERVICE_URL}/video/convert-to-mp4?quality=medium`, {
+    method: 'POST',
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+  
+  return await response.blob();
+}
+
 export function MultipartFileUploader({
   onUploadSuccess,
   allowedFileTypes,
@@ -156,12 +199,26 @@ export function useUppyUploader(props: {
   const { onUploadSuccess, allowedFileTypes } = props;
   const fetch = useFetch();
   return useMemo(() => {
-    // Add HEIC/HEIF support when images are allowed (for iPhone camera photos)
-    const allowedTypesWithHeic = allowedFileTypes
+    // Add HEIC/HEIF and video formats support (for iPhone camera photos/videos)
+    const allowedTypesWithExtras = allowedFileTypes
       .split(',')
       .flatMap((type) => {
         if (type.trim() === 'image/*') {
           return ['image/*', 'image/heic', 'image/heif', '.heic', '.heif'];
+        }
+        if (type.trim() === 'video/mp4' || type.trim() === 'video/*') {
+          // Add MOV and other video formats that will be converted to MP4
+          return [
+            type,
+            'video/quicktime', // MOV
+            'video/x-quicktime',
+            'video/x-msvideo', // AVI
+            'video/x-matroska', // MKV
+            'video/webm',
+            'video/x-ms-wmv', // WMV
+            'video/x-flv', // FLV
+            '.mov', '.avi', '.mkv', '.webm', '.wmv', '.flv', '.m4v', '.3gp'
+          ];
         }
         return [type];
       });
@@ -170,7 +227,7 @@ export function useUppyUploader(props: {
       autoProceed: true,
       restrictions: {
         // maxNumberOfFiles: 5,
-        allowedFileTypes: allowedTypesWithHeic,
+        allowedFileTypes: allowedTypesWithExtras,
         maxFileSize: 1000000000, // Default 1GB, but we'll override with custom validation
       },
     });
@@ -215,6 +272,47 @@ export function useUppyUploader(props: {
               toast.show('Failed to convert HEIC file. Please convert it manually to JPG/PNG.', 'warning');
               uppy2.removeFile(file.id);
               throw new Error('HEIC conversion failed');
+            }
+          }
+        }
+      }
+    });
+
+    // Video to MP4 converter preprocessor - must be first to convert before type validation
+    uppy2.addPreProcessor(async (fileIDs) => {
+      const files = uppy2.getFiles();
+      
+      for (const file of files) {
+        if (fileIDs.includes(file.id)) {
+          const needsConversion = needsVideoConversion(file.name, file.type);
+          
+          if (needsConversion && file.data) {
+            try {
+              toast.show('Converting video to MP4...', 'warning');
+              
+              // Convert video to MP4 using Python service
+              const convertedBlob = await convertVideoToMp4(file.data as Blob, file.name);
+              
+              // Create new filename with .mp4 extension
+              const newFileName = file.name
+                ?.replace(/\.[^/.]+$/, '.mp4') || 'converted.mp4';
+              
+              // Remove old file and add converted one
+              uppy2.removeFile(file.id);
+              uppy2.addFile({
+                name: newFileName,
+                type: 'video/mp4',
+                data: convertedBlob,
+                source: 'Local',
+                isRemote: false,
+              });
+              
+              toast.show('Video converted to MP4 successfully!', 'success');
+            } catch (error) {
+              console.error('Video conversion error:', error);
+              toast.show('Failed to convert video file. Please convert it manually to MP4.', 'warning');
+              uppy2.removeFile(file.id);
+              throw new Error('Video conversion failed');
             }
           }
         }
