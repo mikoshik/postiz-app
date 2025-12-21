@@ -67,3 +67,4 @@ __pycache__
 python_service/venv
 /logs
 hosts — ярлык.lnk
+.env.development
