@@ -162,11 +162,29 @@ export const CalendarWeekProvider: FC<{
     return data;
   }, [filters, params]);
 
+  // Проверяем, есть ли посты, которые скоро будут опубликованы (в течение 5 минут)
+  const hasUpcomingPosts = useMemo(() => {
+    const now = newDayjs();
+    const fiveMinutesLater = now.add(5, 'minute');
+    return internalData.some((post: Post) => {
+      const publishDate = newDayjs(post.publishDate);
+      return (
+        post.state !== 'PUBLISHED' &&
+        post.state !== 'DRAFT' &&
+        publishDate.isAfter(now.subtract(2, 'minute')) &&
+        publishDate.isBefore(fiveMinutesLater)
+      );
+    });
+  }, [internalData]);
+
+  // Динамический интервал обновления: 10 сек если есть посты скоро, иначе 2 минуты
+  const refreshInterval = hasUpcomingPosts ? 15000 : 120000;
+
   const swr = useSWR(`/posts-${params}`, loadData, {
-    refreshInterval: 3600000,
+    refreshInterval,
     refreshWhenOffline: false,
     refreshWhenHidden: false,
-    revalidateOnFocus: false,
+    revalidateOnFocus: true,
   });
 
   const defaultSign = useCallback(async () => {
