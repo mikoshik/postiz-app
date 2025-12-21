@@ -613,10 +613,10 @@ export const MultiMediaComponent: FC<{
   return (
     <>
       <div className="b1 flex flex-col gap-[8px] bg-bigStrip rounded-bl-[8px] select-none w-full">
-        <div className="flex gap-[10px]">
+        <div className="flex flex-wrap gap-[10px] items-start">
           <Button
             onClick={showModal}
-            className="ms-[10px] !px-[0] !h-[80px] w-[80px] rounded-[4px] mb-[10px] gap-[8px] !text-primary justify-center items-center flex border border-dashed border-newBgLineColor bg-newColColor"
+            className="ms-[10px] !px-[0] !h-[80px] w-[80px] rounded-[4px] mb-[10px] gap-[8px] !text-primary justify-center items-center flex border border-dashed border-newBgLineColor bg-newColColor flex-shrink-0"
           >
             <div className="flex flex-col gap-[5px] items-center">
               <div>
@@ -646,14 +646,14 @@ export const MultiMediaComponent: FC<{
               setList={(value) =>
                 onChange({ target: { name: 'upload', value } })
               }
-              className="flex gap-[10px] sortable-container"
+              className="flex flex-wrap gap-[10px] sortable-container flex-1 min-w-0"
               animation={200}
               swap={true}
               handle=".dragging"
             >
               {currentMedia.map((media, index) => (
                 <Fragment key={media.id}>
-                  <div className="cursor-pointer rounded-[4px] w-[80px] h-[80px] border-2 border-tableBorder relative flex transition-all">
+                  <div className="cursor-pointer rounded-[4px] w-[80px] h-[80px] border-2 border-tableBorder relative flex transition-all flex-shrink-0">
                     <div className="dragging text-sm absolute pe-[1px] z-[10] pb-[3px] -start-[4px] -top-[4px] bg-blue-700 cursor-move rounded-full w-[15px] h-[15px] text-white flex justify-center items-center">
                       ::
                     </div>
