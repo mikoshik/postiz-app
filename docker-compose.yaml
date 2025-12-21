@@ -24,7 +24,7 @@ services:
 
   # === ОСНОВНОЕ ПРИЛОЖЕНИЕ ===
   postiz:
-    image: hiroxito/postiz-app:latest
+    image: hiroxito/postiz-app:1.3
     container_name: postiz
     restart: always
     env_file:
