@@ -1,5 +1,5 @@
 """
-Роутер для конвертации изображений (HEIC -> JPG/PNG).
+Роутер для конвертации изображений (HEIC -> JPG/PNG) в Full HD.
 """
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import Response
@@ -12,6 +12,10 @@ pillow_heif.register_heif_opener()
 
 router = APIRouter(prefix="/image", tags=["Image Processing"])
 
+# Full HD размеры
+FULLHD_WIDTH = 1920
+FULLHD_HEIGHT = 1080
+
 
 @router.post("/convert-heic")
 async def convert_heic_to_jpeg(
@@ -20,7 +24,7 @@ async def convert_heic_to_jpeg(
     output_format: str = "JPEG"
 ):
     """
-    Конвертирует HEIC/HEIF изображение в JPEG или PNG.
+    Конвертирует HEIC/HEIF изображение в JPEG или PNG и автоматически приводит размер к Full HD (1920x1080).
     
     Args:
         file: HEIC/HEIF файл для конвертации
@@ -28,7 +32,7 @@ async def convert_heic_to_jpeg(
         output_format: Формат выхода - JPEG или PNG (по умолчанию JPEG)
     
     Returns:
-        Конвертированное изображение в формате JPEG или PNG
+        Конвертированное изображение в формате JPEG или PNG с разрешением Full HD (1920x1080)
     """
     # Проверяем формат файла
     if not file.filename:
@@ -60,6 +64,11 @@ async def convert_heic_to_jpeg(
         if output_format == "JPEG" and image.mode in ("RGBA", "P"):
             image = image.convert("RGB")
         
+        # Масштабируем до Full HD только если изображение больше
+        # Если меньше - оставляем как есть (не растягиваем)
+        if image.width > FULLHD_WIDTH or image.height > FULLHD_HEIGHT:
+            image.thumbnail((FULLHD_WIDTH, FULLHD_HEIGHT), Image.Resampling.LANCZOS)
+        
         # Сохраняем в нужном формате
         output_buffer = BytesIO()
         
@@ -83,7 +92,9 @@ async def convert_heic_to_jpeg(
             headers={
                 "Content-Disposition": f'attachment; filename="{new_filename}"',
                 "X-Original-Filename": file.filename,
-                "X-Converted-Filename": new_filename
+                "X-Converted-Filename": new_filename,
+                "X-Image-Width": str(FULLHD_WIDTH),
+                "X-Image-Height": str(FULLHD_HEIGHT)
             }
         )
         
@@ -101,5 +112,6 @@ async def health_check():
         "status": "ok",
         "service": "heic-converter",
         "supported_formats": ["HEIC", "HEIF"],
-        "output_formats": ["JPEG", "PNG"]
+        "output_formats": ["JPEG", "PNG"],
+        "output_resolution": f"{FULLHD_WIDTH}x{FULLHD_HEIGHT}"
     }
