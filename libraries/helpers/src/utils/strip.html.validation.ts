@@ -131,6 +131,17 @@ const underlineMap = {
   '0': '0̲',
 };
 
+// Удаляет пустые и лишние <p> теги из HTML контента
+const cleanExcessParagraphTags = (html: string): string => {
+  // Удаляет пустые <p> теги и теги которые содержат только пробелы/переносы
+  let cleaned = html.replace(/<p[^>]*>\s*<\/p>/gi, '');
+  
+  // Заменяет несколько подряд идущих </p><p> на единый перевод строки
+  cleaned = cleaned.replace(/<\/p>\s*<p[^>]*>/gi, '\n');
+  
+  return cleaned;
+};
+
 export const stripHtmlValidation = (
   type: 'none' | 'normal' | 'markdown' | 'html',
   val: string,
@@ -143,7 +154,9 @@ export const stripHtmlValidation = (
     return val;
   }
 
-  const value = serialize(parseFragment(val));
+  // Очищаем лишние <p> теги перед дальнейшей обработкой
+  const cleanedVal = cleanExcessParagraphTags(val);
+  const value = serialize(parseFragment(cleanedVal));
 
   if (type === 'html') {
     // First convert <br> tags to newlines, then process other tags
