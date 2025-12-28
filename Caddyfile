@@ -20,4 +20,16 @@ rvm-auto-admin.xyz {
     handle {
         reverse_proxy postiz:5000
     }
+    handle /privacy {
+        root * /srv             # Ищем файлы в папке /srv (это твоя папка legal)
+        try_files /privacy.html # Отдаем конкретный файл
+        file_server             # Включаем модуль раздачи файлов
+    }
+
+    # Если запрашивают /terms
+    handle /terms {
+        root * /srv
+        try_files /terms.html
+        file_server
+    }
 }
