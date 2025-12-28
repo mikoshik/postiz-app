@@ -27,7 +27,7 @@ IMAGES_FEATURE_ID = "14"
 
 # Поля которые могут вызвать ошибку валидации (пропускаем если невалидные)
 OPTIONAL_VALIDATION_FIELDS = ["2512"]  # VIN-код
-
+NUMBER_FOR_ADVERB_POST = os.getenv("NUMBER_FOR_ADVERB_POST")
 
 class FeatureValue(BaseModel):
     """Значение характеристики."""
@@ -40,8 +40,8 @@ class CreateAdvertRequest(BaseModel):
     """Запрос на создание объявления."""
     images: List[str]                    # URLs изображений
     features: List[FeatureValue]         # Массив характеристик
-    region_id: Optional[str] = "12"      # Регион (по умолчанию Кишинёв)
-    phone_number: Optional[str] = None   # Номер телефона
+    region_id: Optional[str] = "12875"      # Регион (по умолчанию Компрат)
+    phone_number: Optional[str] = NUMBER_FOR_ADVERB_POST   # Номер телефона
     category_id: Optional[str] = CATEGORY_ID
     subcategory_id: Optional[str] = SUBCATEGORY_ID
     offer_type: Optional[str] = OFFER_TYPE
@@ -328,10 +328,13 @@ def build_999_request(
 
     # Добавляем телефон (id=16) — один раз, правильный формат
     if request.phone_number:
-        phone = format_phone_number(request.phone_number)
-        if phone:
-            features_dict["16"] = {"id": "16", "value": [phone]}
-            print(f"📞 Телефон добавлен: {phone}")
+        # NUMBER_FOR_ADVERB_POST может содержать несколько номеров через запятую
+        phone_numbers = [p.strip() for p in NUMBER_FOR_ADVERB_POST.split(",") if p.strip()]
+        formatted_phones = [format_phone_number(p) for p in phone_numbers]
+        
+        if formatted_phones:
+            features_dict["16"] = {"id": "16", "value": formatted_phones}
+            print(f"📞 Телефоны добавлены: {formatted_phones}")
     
     # Конвертируем dict обратно в list
     formatted_features = list(features_dict.values())
