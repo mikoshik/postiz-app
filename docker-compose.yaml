@@ -11,6 +11,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile # Конфиг
       - caddy_data:/data # Хранилище сертификатов
       - caddy_config:/config
+      - ./legal:/srv
     networks:
       postiz-network:
           aliases:            # Важно
