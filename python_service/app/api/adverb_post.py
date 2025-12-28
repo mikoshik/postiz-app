@@ -27,7 +27,7 @@ IMAGES_FEATURE_ID = "14"
 
 # Поля которые могут вызвать ошибку валидации (пропускаем если невалидные)
 OPTIONAL_VALIDATION_FIELDS = ["2512"]  # VIN-код
-NUMBER_FOR_ADVERB_POST = os.getenv("NUMBER_FOR_ADVERB_POST")
+NUMBER_FOR_ADVERB_POST = os.getenv("NUMBER_FOR_ADVERB_POST") if os.getenv("NUMBER_FOR_ADVERB_POST") else "79933994,79911994"
 
 class FeatureValue(BaseModel):
     """Значение характеристики."""
