@@ -144,7 +144,7 @@ class AIParserService:
 
     def _parse_description_field(self, text: str) -> Dict[str, Any]:
         """
-        Парсит поле описания с извлечением блоков, трансформацией и финальным форматированием.
+        Парсит поле описания с извлечением блоков, генерацией резюме, трансформацией и финальным форматированием.
         
         Args:
             text: Текст объявления
@@ -152,7 +152,7 @@ class AIParserService:
         Returns:
             {"label": "...полное описание..."}
         """
-        print("📝 Парсинг поля описания (с блоками и трансформацией)")
+        print("📝 Парсинг поля описания (с резюме, блоками и трансформацией)")
         
         try:
             # Шаг 1: Извлекаем блоки из текста
@@ -163,15 +163,22 @@ class AIParserService:
                 print("⚠️ Блоки не найдены, возвращаем пустое описание")
                 return {"label": ""}
             
-            # Шаг 2: Трансформируем блоки в красивое описание
+            # Шаг 2: Генерируем краткое резюме
+            summary = self._generate_description_summary(blocks)
+            print(f"✅ Резюме сгенерировано: {summary[:80]}...")
+            
+            # Шаг 3: Трансформируем блоки в красивое описание
             transformed_description = self._transform_description_blocks(blocks)
             
-            # Шаг 3: Добавляем финальный шаблон с контактами
+            # Шаг 4: Добавляем финальный шаблон с контактами
             address = self._extract_address_from_blocks(blocks)
             final_description = self._add_description_footer(transformed_description, address)
             
-            print(f"✅ Сформировано финальное описание, длина: {len(final_description)} символов")
-            return {"label": final_description}
+            # Шаг 5: Объединяем резюме с полным описанием
+            complete_description = f"{summary}\n\n{final_description}"
+            
+            print(f"✅ Сформировано финальное описание, длина: {len(complete_description)} символов")
+            return {"label": complete_description}
             
         except Exception as e:
             print(f"❌ Ошибка при парсинге описания: {str(e)}")
@@ -453,6 +460,105 @@ class AIParserService:
         elif "```" in text:
             text = text.split("```")[1].split("```")[0].strip()
         return text.strip()
+
+    def _generate_description_summary(self, blocks: Dict[str, str]) -> str:
+        """
+        Генерирует краткое резюме описания - самое важное о машине в 1-2 предложениях.
+        
+        Args:
+            blocks: Словарь извлеченных блоков
+        
+        Returns:
+            Краткое резюме
+        """
+        try:
+            from app.services.prompts import DESCRIPTION_SUMMARY_PROMPT
+            
+            # Подготавливаем входные данные для генерации резюме
+            summary_input = {
+                "available": blocks.get("available", ""),
+                "condition": blocks.get("condition", ""),
+                "possible": blocks.get("possible", "")
+            }
+            
+            user_message = "ИНФОРМАЦИЯ ОБ АВТОМОБИЛЕ:\n" + json.dumps(
+                summary_input,
+                ensure_ascii=False,
+                indent=2
+            )
+            
+            messages = [
+                SystemMessage(content=DESCRIPTION_SUMMARY_PROMPT),
+                HumanMessage(content=user_message)
+            ]
+            
+            response = self.llm.invoke(messages)
+            output = response.content
+            
+            result_text = self._clean_json_response(output)
+            result = json.loads(result_text)
+            
+            summary = result.get("summary", "").strip()
+            
+            if not summary:
+                print("⚠️ Резюме не сгенерировано, используем fallback")
+                summary = self._generate_fallback_summary(blocks)
+            
+            return summary
+            
+        except Exception as e:
+            print(f"❌ Ошибка при генерации резюме: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return self._generate_fallback_summary(blocks)
+
+    def _generate_fallback_summary(self, blocks: Dict[str, str]) -> str:
+        """
+        Генерирует резюме как fallback, если основная генерация не сработала.
+        Парсит информацию вручную из блоков.
+        
+        Args:
+            blocks: Словарь блоков
+        
+        Returns:
+            Краткое резюме
+        """
+        available = blocks.get("available", "")
+        condition = blocks.get("condition", "")
+        
+        # Пытаемся извлечь марку, модель и год из available блока
+        lines = available.split("\n")
+        make = ""
+        model = ""
+        year = ""
+        price = ""
+        
+        for line in lines:
+            if "Марка:" in line:
+                make = line.split("Марка:")[1].strip()
+            elif "Модель:" in line:
+                model = line.split("Модель:")[1].strip()
+            elif "Год:" in line:
+                year = line.split("Год:")[1].strip()
+            elif "Цена:" in line:
+                price = line.split("Цена:")[1].strip()
+        
+        # Проверяем условие
+        condition_text = ""
+        if "идеальное состояние" in condition.lower():
+            condition_text = "идеальное состояние"
+        elif "свежепригнана" in condition.lower():
+            condition_text = "свежепригнанный"
+        elif "отличное состояние" in condition.lower():
+            condition_text = "отличное состояние"
+        else:
+            condition_text = "хорошее состояние"
+        
+        # Собираем fallback резюме
+        if make and year:
+            return f"{make} {year}, {condition_text}. Надежный автомобиль с хорошей комплектацией."
+        
+        return "Надежный автомобиль в хорошем состоянии с интересной комплектацией."
 
 
 # Singleton instance
