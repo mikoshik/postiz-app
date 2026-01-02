@@ -169,6 +169,7 @@ async def scale_video_resolution(
 ) -> None:
     """
     Масштабирует разрешение видео до целевого размера.
+    Также переконвертирует аудио в стерео для совместимости с AAC кодеком.
     
     Args:
         input_path: Путь к исходному видео файлу
@@ -187,10 +188,12 @@ async def scale_video_resolution(
     cmd = [
         'ffmpeg',
         '-i', input_path,
-        '-vf', scale_filter,       # apply scale filter
-        '-c:v', 'libx264',         # video codec
-        '-c:a', 'aac',             # audio codec
-        '-b:a', '128k',            # audio bitrate
+        '-vf', scale_filter,              # apply scale filter for video
+        '-af', 'aresample=8000',           # resample audio to mono/stereo and fix channel layout
+        '-c:v', 'libx264',                 # video codec
+        '-c:a', 'aac',                     # audio codec
+        '-b:a', '128k',                    # audio bitrate
+        '-ac', '2',                        # force 2 channels (stereo)
         '-movflags', 'faststart',
         '-y',
         output_path
@@ -319,6 +322,8 @@ async def convert_video_to_mp4(
                 '-c:v', 'libx264',
                 '-c:a', 'aac',
                 *settings,
+                '-af', 'aresample=8000',           # resample audio and fix channel layout
+                '-ac', '2',                        # force 2 channels (stereo)
                 '-movflags', 'faststart',
                 '-b:a', '128k',
                 '-y',
