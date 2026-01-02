@@ -5,9 +5,17 @@ import subprocess
 import tempfile
 import os
 import json
-import re
+import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import Response
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%dT%H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/video", tags=["Video Processing"])
 
@@ -30,6 +38,8 @@ async def get_video_resolution(input_path: str) -> tuple[int, int]:
         HTTPException: Если не удалось получить информацию о видео
     """
     try:
+        logger.debug(f"Получение разрешения видео: {input_path}")
+        
         cmd = [
             'ffprobe',
             '-v', 'error',
@@ -47,6 +57,7 @@ async def get_video_resolution(input_path: str) -> tuple[int, int]:
         )
         
         if result.returncode != 0:
+            logger.error(f"FFprobe ошибка: {result.stderr}")
             raise HTTPException(
                 status_code=500,
                 detail="Failed to get video resolution"
@@ -59,14 +70,17 @@ async def get_video_resolution(input_path: str) -> tuple[int, int]:
             height = stream.get('height', 0)
             
             if width > 0 and height > 0:
+                logger.info(f"Разрешение видео: {width}x{height}")
                 return (width, height)
         
+        logger.error("Не удалось определить разрешение видео")
         raise HTTPException(
             status_code=500,
             detail="Could not determine video resolution"
         )
         
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        logger.error(f"Ошибка парсинга JSON: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to parse video resolution"
@@ -88,6 +102,7 @@ async def calculate_scaled_resolution(width: int, height: int) -> tuple[int, int
     """
     # Если разрешение уже в пределах нормы
     if width <= MAX_WIDTH and height <= MAX_HEIGHT:
+        logger.info(f"Разрешение в норме ({width}x{height}), масштабирование не требуется")
         return (width, height)
     
     # Вычисляем коэффициент масштабирования
@@ -102,6 +117,7 @@ async def calculate_scaled_resolution(width: int, height: int) -> tuple[int, int
     new_width = new_width if new_width % 2 == 0 else new_width - 1
     new_height = new_height if new_height % 2 == 0 else new_height - 1
     
+    logger.info(f"Видео будет масштабировано: {width}x{height} → {new_width}x{new_height} (масштаб: {scale:.2f})")
     return (new_width, new_height)
 
 
@@ -116,6 +132,8 @@ async def trim_video_to_60_seconds(input_path: str, output_path: str) -> None:
     Raises:
         HTTPException: Если обрезка не удалась
     """
+    logger.info("🎬 ЭТАП 1: Обрезка видео до 60 секунд")
+    
     cmd = [
         'ffmpeg',
         '-i', input_path,          # input file
@@ -134,10 +152,13 @@ async def trim_video_to_60_seconds(input_path: str, output_path: str) -> None:
     
     if result.returncode != 0:
         error_msg = result.stderr or "Unknown FFmpeg error"
+        logger.error(f"Ошибка обрезки видео: {error_msg}")
         raise HTTPException(
             status_code=500,
             detail=f"Video trimming failed: {error_msg}"
         )
+    
+    logger.info("✅ Видео успешно обрезано до 60 секунд")
 
 
 async def scale_video_resolution(
@@ -158,6 +179,8 @@ async def scale_video_resolution(
     Raises:
         HTTPException: Если масштабирование не удалось
     """
+    logger.info(f"📐 ЭТАП 2: Масштабирование видео до {target_width}x{target_height}")
+    
     # FFmpeg scale фильтр с -1 для сохранения пропорций
     scale_filter = f'scale={target_width}:{target_height}'
     
@@ -182,10 +205,13 @@ async def scale_video_resolution(
     
     if result.returncode != 0:
         error_msg = result.stderr or "Unknown FFmpeg error"
+        logger.error(f"Ошибка масштабирования видео: {error_msg}")
         raise HTTPException(
             status_code=500,
             detail=f"Video scaling failed: {error_msg}"
         )
+    
+    logger.info(f"✅ Видео успешно масштабировано до {target_width}x{target_height}")
 
 
 @router.post("/convert-to-mp4")
@@ -207,7 +233,11 @@ async def convert_video_to_mp4(
         Конвертированное видео в формате MP4 (максимум 60 секунд, 1920x1080)
     """
     if not file.filename:
+        logger.error("Filename не указан")
         raise HTTPException(status_code=400, detail="Filename is required")
+    
+    logger.info(f"🎥 Начало конвертации видео: {file.filename}")
+    logger.info(f"   Качество: {quality}")
     
     # Поддерживаемые форматы для конвертации
     supported_extensions = ['.mov', '.avi', '.mkv', '.webm', '.wmv', '.flv', '.m4v', '.3gp']
@@ -219,6 +249,7 @@ async def convert_video_to_mp4(
         file_ext = '.mp4'
     
     if file_ext not in supported_extensions and file_ext != '.mp4':
+        logger.error(f"Неподдерживаемый формат: {file_ext}")
         raise HTTPException(
             status_code=400, 
             detail=f"Unsupported video format: {file_ext}. Supported: {', '.join(supported_extensions)}"
@@ -232,6 +263,7 @@ async def convert_video_to_mp4(
     }
     
     if quality not in quality_settings:
+        logger.error(f"Некорректное качество: {quality}")
         raise HTTPException(status_code=400, detail="Quality must be: low, medium, or high")
     
     settings = quality_settings[quality]
@@ -239,11 +271,14 @@ async def convert_video_to_mp4(
     try:
         # Читаем файл
         contents = await file.read()
+        logger.info(f"✅ Файл прочитан, размер: {len(contents)} байт")
         
         # Создаём временные файлы
         with tempfile.NamedTemporaryFile(suffix=file_ext, delete=False) as input_file:
             input_file.write(contents)
             input_path = input_file.name
+        
+        logger.info(f"📁 Временный файл создан: {input_path}")
         
         # Создаём пути для промежуточных файлов
         trimmed_path = input_path.rsplit('.', 1)[0] + '_trimmed' + file_ext
@@ -259,6 +294,7 @@ async def convert_video_to_mp4(
             # Шаг 1: Сначала обрезаем видео до 60 секунд
             await trim_video_to_60_seconds(input_path, trimmed_path)
             
+            logger.info("📊 ЭТАП 1.5: Анализ разрешения видео")
             # Шаг 2: Получаем разрешение обрезанного видео
             original_width, original_height = await get_video_resolution(trimmed_path)
             
@@ -271,10 +307,12 @@ async def convert_video_to_mp4(
                 # Используем масштабированное видео для финальной конвертации
                 final_input = scaled_path
             else:
+                logger.info("⏭️  Масштабирование пропущено, видео уже имеет нужное разрешение")
                 # Если масштабирование не требуется, конвертируем обрезанное видео напрямую
                 final_input = trimmed_path
             
             # Шаг 5: Финальная конвертация в MP4 с нужным качеством
+            logger.info(f"🔄 ЭТАП 3: Финальная конвертация в MP4 (качество: {quality})")
             cmd = [
                 'ffmpeg',
                 '-i', final_input,
@@ -296,19 +334,36 @@ async def convert_video_to_mp4(
             
             if result.returncode != 0:
                 error_msg = result.stderr or "Unknown FFmpeg error"
+                logger.error(f"Ошибка конвертации: {error_msg}")
                 raise HTTPException(
                     status_code=500, 
                     detail=f"FFmpeg conversion failed: {error_msg}"
                 )
             
+            logger.info("✅ Финальная конвертация завершена")
+            
             # Читаем результат
             with open(output_path, 'rb') as f:
                 output_data = f.read()
+            
+            logger.info(f"✅ Выходной файл прочитан, размер: {len(output_data)} байт")
             
             # Генерируем новое имя файла
             new_filename = file.filename.rsplit('.', 1)[0] + '.mp4'
             
             was_scaled = scaled_width != original_width or scaled_height != original_height
+            
+            logger.info("=" * 60)
+            logger.info("🎉 КОНВЕРТАЦИЯ УСПЕШНО ЗАВЕРШЕНА!")
+            logger.info("=" * 60)
+            logger.info(f"Исходный файл: {file.filename}")
+            logger.info(f"Выходной файл: {new_filename}")
+            logger.info(f"Исходное разрешение: {original_width}x{original_height}")
+            logger.info(f"Финальное разрешение: {scaled_width}x{scaled_height}")
+            logger.info(f"Масштабировано: {'Да' if was_scaled else 'Нет'}")
+            logger.info(f"Качество: {quality}")
+            logger.info(f"Выходной размер: {len(output_data)} байт")
+            logger.info("=" * 60)
             
             return Response(
                 content=output_data,
@@ -330,13 +385,16 @@ async def convert_video_to_mp4(
             for path in [input_path, trimmed_path, scaled_path, output_path]:
                 if os.path.exists(path):
                     os.unlink(path)
+            logger.info("🧹 Временные файлы удалены")
                 
     except subprocess.TimeoutExpired:
+        logger.error("❌ Превышено время ожидания при обработке видео")
         raise HTTPException(
             status_code=500, 
             detail="Video processing timed out. File might be too large or complex."
         )
     except Exception as e:
+        logger.error(f"❌ Неожиданная ошибка: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"Failed to process video: {str(e)}"
@@ -347,6 +405,8 @@ async def convert_video_to_mp4(
 async def health_check():
     """Проверка работоспособности сервиса конвертации видео."""
     try:
+        logger.info("🏥 Выполняется проверка здоровья сервиса")
+        
         # Проверяем, что FFmpeg доступен
         result = subprocess.run(
             ['ffmpeg', '-version'], 
@@ -355,6 +415,7 @@ async def health_check():
             timeout=10
         )
         if result.returncode == 0:
+            logger.info("✅ Сервис конвертации видео работает корректно")
             return {
                 "status": "ok",
                 "service": "video-converter",
@@ -365,18 +426,21 @@ async def health_check():
                 "ffmpeg_version": result.stdout.split('\n')[0] if result.stdout else "unknown"
             }
         else:
+            logger.error("❌ FFmpeg не найден или не работает")
             return {
                 "status": "error",
                 "service": "video-converter",
                 "error": "FFmpeg not found or not working"
             }
     except subprocess.TimeoutExpired:
+        logger.error("❌ Проверка FFmpeg истекла по времени")
         return {
             "status": "error",
             "service": "video-converter",
             "error": "FFmpeg check timed out"
         }
     except Exception as e:
+        logger.error(f"❌ Ошибка при проверке здоровья: {str(e)}")
         return {
             "status": "error",
             "service": "video-converter",
