@@ -99,6 +99,13 @@ const TikTokSettings: FC<{
   const brand_organic_toggle = watch('brand_organic_toggle');
   const brand_content_toggle = watch('brand_content_toggle');
   const content_posting_method = watch('content_posting_method');
+  const privacy_level = watch('privacy_level');
+  const autoAddMusic = watch('autoAddMusic');
+  const comment = watch('comment');
+  const duet = watch('duet');
+  const stitch = watch('stitch');
+  const video_made_with_ai = watch('video_made_with_ai');
+
   const isUploadMode = content_posting_method === 'UPLOAD';
 
   const privacyLevel = [
@@ -155,7 +162,7 @@ const TikTokSettings: FC<{
         hideErrors={true}
         disabled={isUploadMode}
         {...register('privacy_level', {
-          value: 'PUBLIC_TO_EVERYONE',
+          value: privacy_level || 'PUBLIC_TO_EVERYONE',
         })}
       >
         <option value="">{t('select', 'Select')}</option>
@@ -175,7 +182,7 @@ const TikTokSettings: FC<{
       <Select
         label={t('label_content_posting_method', 'Content posting method')}
         {...register('content_posting_method', {
-          value: 'DIRECT_POST',
+          value: content_posting_method || 'DIRECT_POST',
         })}
       >
         <option value="">{t('select', 'Select')}</option>
@@ -189,7 +196,7 @@ const TikTokSettings: FC<{
         hideErrors={true}
         label={t('label_auto_add_music', 'Auto add music')}
         {...register('autoAddMusic', {
-          value: 'no',
+          value: autoAddMusic || 'no',
         })}
       >
         <option value="">{t('select', 'Select')}</option>
@@ -215,7 +222,7 @@ const TikTokSettings: FC<{
           variant="hollow"
           disabled={isUploadMode}
           {...register('comment', {
-            value: true,
+            value: comment !== undefined ? comment : true,
           })}
         />
         <Checkbox
@@ -223,7 +230,7 @@ const TikTokSettings: FC<{
           label={t('label_duet', 'Duet')}
           disabled={isUploadMode}
           {...register('duet', {
-            value: false,
+            value: duet !== undefined ? duet : false,
           })}
         />
         <Checkbox
@@ -231,7 +238,7 @@ const TikTokSettings: FC<{
           variant="hollow"
           disabled={isUploadMode}
           {...register('stitch', {
-            value: false,
+            value: stitch !== undefined ? stitch : false,
           })}
         />
       </div>
@@ -241,7 +248,7 @@ const TikTokSettings: FC<{
           label={t('video_made_with_ai', 'Video made with AI')}
           variant="hollow"
           {...register('video_made_with_ai', {
-            value: false,
+            value: video_made_with_ai !== undefined ? video_made_with_ai : false,
           })}
         />
         <Checkbox
@@ -249,7 +256,7 @@ const TikTokSettings: FC<{
           label={t('label_disclose_video_content', 'Disclose Video Content')}
           disabled={isUploadMode}
           {...register('disclose', {
-            value: false,
+            value: disclose !== undefined ? disclose : false,
           })}
         />
         {disclose && (
@@ -294,7 +301,7 @@ const TikTokSettings: FC<{
           label={t('label_your_brand', 'Your brand')}
           disabled={isUploadMode}
           {...register('brand_organic_toggle', {
-            value: false,
+            value: brand_organic_toggle !== undefined ? brand_organic_toggle : false,
           })}
         />
         <div className="text-balance my-[10px] text-[14px]">
@@ -313,7 +320,7 @@ const TikTokSettings: FC<{
           label={t('label_branded_content', 'Branded content')}
           disabled={isUploadMode}
           {...register('brand_content_toggle', {
-            value: false,
+            value: brand_content_toggle !== undefined ? brand_content_toggle : false,
           })}
         />
         <div className="text-balance my-[10px] text-[14px]">
