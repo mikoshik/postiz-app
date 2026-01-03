@@ -162,7 +162,7 @@ const TikTokSettings: FC<{
         hideErrors={true}
         disabled={isUploadMode}
         {...register('privacy_level', {
-          value: privacy_level || 'PUBLIC_TO_EVERYONE',
+          value: privacy_level || 'SELF_ONLY',
         })}
       >
         <option value="">{t('select', 'Select')}</option>
@@ -182,7 +182,7 @@ const TikTokSettings: FC<{
       <Select
         label={t('label_content_posting_method', 'Content posting method')}
         {...register('content_posting_method', {
-          value: content_posting_method || 'DIRECT_POST',
+          value: content_posting_method || 'UPLOAD',
         })}
       >
         <option value="">{t('select', 'Select')}</option>
@@ -196,7 +196,7 @@ const TikTokSettings: FC<{
         hideErrors={true}
         label={t('label_auto_add_music', 'Auto add music')}
         {...register('autoAddMusic', {
-          value: autoAddMusic || 'no',
+          value: autoAddMusic || 'yes',
         })}
       >
         <option value="">{t('select', 'Select')}</option>
