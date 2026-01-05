@@ -20,6 +20,7 @@ import { Theme } from 'emoji-picker-react';
 import { BoldText } from '@gitroom/frontend/components/new-launch/bold.text';
 import { UText } from '@gitroom/frontend/components/new-launch/u.text';
 import { SignatureBox } from '@gitroom/frontend/components/signature';
+import HardBreak from '@tiptap/extension-hard-break';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import {
   SelectedIntegrations,
@@ -492,20 +493,30 @@ export const Editor: FC<{
     },
     [uppy]
   );
-
   const paste = useCallback(
     async (event: ClipboardEvent | File[]) => {
       // @ts-ignore
       const clipboardItems = event.clipboardData?.items;
+      console.log('Available clipboard formats:', event);
+
       if (!clipboardItems) {
         return;
       }
+
+      // Log the raw text content from the clipboard
+      const text = 'clipboardData' in event ? event.clipboardData?.getData('text/plain') : null;
+      console.log('Raw text content from clipboard:', text);
+
+      // Log the HTML content from the clipboard if available
+      const html = 'clipboardData' in event ? event.clipboardData?.getData('text/html') : null;
+      console.log('HTML content from clipboard:', html);
 
       // @ts-ignore
       for (const item of clipboardItems) {
         if (item.kind === 'file') {
           const file = item.getAsFile();
           if (file) {
+            console.log('File added from clipboard:', file);
             uppy.addFile(file);
           }
         }
@@ -755,6 +766,7 @@ export const OnlyEditor = forwardRef<
       Text,
       Underline,
       Bold,
+      HardBreak,
       InterceptBoldShortcut,
       InterceptUnderlineShortcut,
       BulletList,
