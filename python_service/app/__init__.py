@@ -10,6 +10,8 @@ from app.config.settings import CORS_ORIGINS
 from app.api.nine_router import router as nine_router
 from app.api.posts_router import router as posts_router
 from app.api.adverb_post import router as advert_router
+from app.api.image_router import router as image_router
+from app.api.video_router import router as video_router
 
 
 def create_app() -> FastAPI:
@@ -53,6 +55,8 @@ def create_app() -> FastAPI:
     app.include_router(nine_router)
     app.include_router(posts_router)
     app.include_router(advert_router)
+    app.include_router(image_router)
+    app.include_router(video_router)
 
     @app.get("/health")
     async def health():

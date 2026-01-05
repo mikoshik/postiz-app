@@ -131,20 +131,18 @@ export const Component: FC<{
       <div
         style={{ zIndex }}
         className={clsx(
-          'fixed flex left-0 top-0 min-w-full min-h-full bg-popup transition-all animate-fadeIn overflow-y-auto pb-[50px] text-newTextColor',
+          'fixed inset-0 w-screen h-screen bg-popup transition-all animate-fadeIn overflow-y-auto overflow-x-hidden text-newTextColor',
           !isLast && '!overflow-hidden'
         )}
       >
-        <div className="relative flex-1">
-          <div className="absolute top-0 left-0 min-w-full min-h-full">
-            <div
-              className="mx-auto py-[48px]"
-              {...(modal.size && { style: { width: modal.size } })}
-            >
-              {typeof modal.children === 'function'
-                ? modal.children(closeModalFunction)
-                : modal.children}
-            </div>
+        <div className="min-h-full w-full flex justify-center items-start py-[10px] px-[10px] box-border">
+          <div
+            className="w-full h-full"
+            style={{ maxWidth: modal.size || '100%' }}
+          >
+            {typeof modal.children === 'function'
+              ? modal.children(closeModalFunction)
+              : modal.children}
           </div>
         </div>
       </div>

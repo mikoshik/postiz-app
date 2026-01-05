@@ -3,6 +3,7 @@ API роутер для создания объявлений на 999.md.
 """
 import httpx, json
 import re
+import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -26,7 +27,7 @@ IMAGES_FEATURE_ID = "14"
 
 # Поля которые могут вызвать ошибку валидации (пропускаем если невалидные)
 OPTIONAL_VALIDATION_FIELDS = ["2512"]  # VIN-код
-
+NUMBER_FOR_ADVERB_POST = os.getenv("NUMBER_FOR_ADVERB_POST") if os.getenv("NUMBER_FOR_ADVERB_POST") else "79933994,79911994"
 
 class FeatureValue(BaseModel):
     """Значение характеристики."""
@@ -39,8 +40,8 @@ class CreateAdvertRequest(BaseModel):
     """Запрос на создание объявления."""
     images: List[str]                    # URLs изображений
     features: List[FeatureValue]         # Массив характеристик
-    region_id: Optional[str] = "12"      # Регион (по умолчанию Кишинёв)
-    phone_number: Optional[str] = None   # Номер телефона
+    region_id: Optional[str] = "12875"      # Регион (по умолчанию Компрат)
+    phone_number: Optional[str] = NUMBER_FOR_ADVERB_POST   # Номер телефона
     category_id: Optional[str] = CATEGORY_ID
     subcategory_id: Optional[str] = SUBCATEGORY_ID
     offer_type: Optional[str] = OFFER_TYPE
@@ -155,6 +156,31 @@ def format_feature_value(feat: FeatureValue) -> Optional[Dict[str, Any]]:
     return {"id": feature_id, "value": value}
 
 
+def convert_localhost_to_docker(url: str) -> str:
+    """
+    Преобразует localhost URL в Docker-совместимый URL.
+    Внутри Docker сети localhost не работает — нужно использовать имя сервиса.
+    
+    http://localhost:5000/uploads/... -> http://postiz:5000/uploads/...
+    """
+    # Получаем внутренний URL из переменной окружения или используем имя контейнера
+    internal_url = os.getenv("POSTIZ_INTERNAL_URL", "http://postiz:5000")
+    
+    # Заменяем localhost и 127.0.0.1 на внутренний URL
+    docker_url = url
+    if "localhost:5000" in url:
+        docker_url = url.replace("http://localhost:5000", internal_url)
+    elif "127.0.0.1:5000" in url:
+        docker_url = url.replace("http://127.0.0.1:5000", internal_url)
+    
+    if docker_url != url:
+        print(f"  🔄 URL преобразован: {url[:50]}... -> {docker_url[:50]}...")
+    else: 
+        print(f"  ℹ️ URL не  преобразован: {url[:50]}...")
+    
+    return docker_url
+
+
 async def upload_image_to_999(image_url: str, api_key: str) -> Optional[str]:
     """
     Загружает одно изображение на 999.md и возвращает его ID/имя.
@@ -168,11 +194,14 @@ async def upload_image_to_999(image_url: str, api_key: str) -> Optional[str]:
         или None при ошибке
     """
     try:
+        # Преобразуем localhost URL в Docker-совместимый
+        docker_url = convert_localhost_to_docker(image_url)
+        
         async with httpx.AsyncClient() as client:
             # 1. Скачиваем изображение по URL
-            print(f"  📥 Скачиваем: {image_url[:60]}...")
+            print(f"  📥 Скачиваем: {docker_url[:60]}...")
             
-            img_response = await client.get(image_url, timeout=30.0, follow_redirects=True)
+            img_response = await client.get(docker_url, timeout=30.0, follow_redirects=True)
             if img_response.status_code != 200:
                 print(f"  ❌ Не удалось скачать изображение: {img_response.status_code}")
                 return None
@@ -299,10 +328,13 @@ def build_999_request(
 
     # Добавляем телефон (id=16) — один раз, правильный формат
     if request.phone_number:
-        phone = format_phone_number(request.phone_number)
-        if phone:
-            features_dict["16"] = {"id": "16", "value": [phone]}
-            print(f"📞 Телефон добавлен: {phone}")
+        # NUMBER_FOR_ADVERB_POST может содержать несколько номеров через запятую
+        phone_numbers = [p.strip() for p in NUMBER_FOR_ADVERB_POST.split(",") if p.strip()]
+        formatted_phones = [format_phone_number(p) for p in phone_numbers]
+        
+        if formatted_phones:
+            features_dict["16"] = {"id": "16", "value": formatted_phones}
+            print(f"📞 Телефоны добавлены: {formatted_phones}")
     
     # Конвертируем dict обратно в list
     formatted_features = list(features_dict.values())

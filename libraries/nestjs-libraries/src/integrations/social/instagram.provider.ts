@@ -458,6 +458,10 @@ export class InstagramProvider
     type = 'graph.facebook.com'
   ): Promise<PostResponse[]> {
     const [firstPost, ...theRest] = postDetails;
+    if (firstPost && firstPost.media && firstPost.media.length > 10) {
+      console.log(`[Instagram] Too many images (${firstPost.media.length}). Slicing to 10.`);
+      firstPost.media = firstPost.media.slice(0, 10);
+    }
     console.log('in progress', id);
     const isStory = firstPost.settings.post_type === 'story';
     const medias = await Promise.all(

@@ -294,131 +294,171 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     id: string,
     accessToken: string,
     postDetails: PostDetails<FacebookDto>[]
-  ): Promise<PostResponse[]> {
+): Promise<PostResponse[]> {
     const [firstPost, ...comments] = postDetails;
 
     let finalId = '';
     let finalUrl = '';
-    if ((firstPost?.media?.[0]?.path?.indexOf('mp4') || -2) > -1) {
-      const {
-        id: videoId,
-        permalink_url,
-        ...all
-      } = await (
-        await this.fetch(
-          `https://graph.facebook.com/v20.0/${id}/videos?access_token=${accessToken}&fields=id,permalink_url`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              file_url: firstPost?.media?.[0]?.path!,
-              description: firstPost.message,
-              published: true,
-            }),
-          },
-          'upload mp4'
-        )
-      ).json();
+    
+    // Проверяем, является ли файл видео (более надежная проверка)
+    const isVideo = firstPost?.media?.[0]?.path?.includes('mp4');
 
-      finalUrl = 'https://www.facebook.com/reel/' + videoId;
-      finalId = videoId;
-    } else {
-      const uploadPhotos = !firstPost?.media?.length
-        ? []
-        : await Promise.all(
-            firstPost.media.map(async (media) => {
-              const { id: photoId } = await (
-                await this.fetch(
-                  `https://graph.facebook.com/v20.0/${id}/photos?access_token=${accessToken}`,
-                  {
+    if (isVideo) {
+        // === ЛОГИКА ДЛЯ ВИДЕО ИСТОРИЙ (STORIES) ===
+        try {
+            const pageId = id;
+            const videoUrl = firstPost?.media?.[0]?.path!;
+
+            // --- ШАГ 1: Инициализация (Start) ---
+            // Запрашиваем у FB разрешение на загрузку и получаем upload_url
+            const startResponse = await this.fetch(
+                `https://graph.facebook.com/v20.0/${pageId}/video_stories?upload_phase=start&access_token=${accessToken}`,
+                { method: 'POST' },
+                'start story upload'
+            );
+            const { upload_url, video_id } = await startResponse.json();
+
+            // --- ШАГ 2: Передача ссылки (Upload via Hosted File) ---
+            // Отправляем ссылку в заголовке. FB скачает файл сам.
+            // Используем нативный fetch, так как URL (rupload) отличается от graph api
+            const uploadResponse = await fetch(upload_url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `OAuth ${accessToken}`,
+                    'file_url': videoUrl // Передаем ссылку здесь!
+                },
+                // Тело пустое, так как файл качает сам Фейсбук
+            });
+
+            const uploadResult = await uploadResponse.json();
+
+            // Если FB не вернул success или id, значит что-то пошло не так
+            if (!uploadResult.success && !uploadResult.id) {
+                // Если вдруг метод hosted file не сработал, тут можно добавить фоллбэк на загрузку бинарником
+                throw new Error(`Facebook upload failed: ${JSON.stringify(uploadResult)}`);
+            }
+
+            // --- ШАГ 3: Публикация (Finish) ---
+            // Подтверждаем, что файл передан, и публикуем историю
+            await this.fetch(
+                `https://graph.facebook.com/v20.0/${pageId}/video_stories`,
+                {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                      url: media.path,
-                      published: false,
+                        access_token: accessToken,
+                        upload_phase: 'finish',
+                        video_id: video_id
                     }),
-                  },
-                  'upload images slides'
-                )
-              ).json();
+                },
+                'finish story upload'
+            );
 
-              return { media_fbid: photoId };
-            })
-          );
+            // Успех
+            finalId = video_id;
+            // У историй нет постоянной ссылки (они исчезают), но можно сформировать примерную
+            finalUrl = `https://www.facebook.com/${pageId}/stories/${video_id}`;
 
-      const {
-        id: postId,
-        permalink_url,
-        ...all
-      } = await (
-        await this.fetch(
-          `https://graph.facebook.com/v20.0/${id}/feed?access_token=${accessToken}&fields=id,permalink_url`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              ...(uploadPhotos?.length ? { attached_media: uploadPhotos } : {}),
-              ...(firstPost?.settings?.url
-                ? { link: firstPost.settings.url }
-                : {}),
-              message: firstPost.message,
-              published: true,
-            }),
-          },
-          'finalize upload'
-        )
-      ).json();
+        } catch (error) {
+            console.error('Failed to upload video to Facebook stories:', error);
+            throw error; // Пробрасываем ошибку, чтобы Postiz знал о сбое
+        }
 
-      finalUrl = permalink_url;
-      finalId = postId;
+    } else {
+        // === ЛОГИКА ДЛЯ ФОТО (FEED) ===
+        // Оставляем старую логику для картинок, она выглядит рабочей для ленты
+        const uploadPhotos = !firstPost?.media?.length
+            ? []
+            : await Promise.all(
+                firstPost.media.map(async (media) => {
+                    const { id: photoId } = await (
+                        await this.fetch(
+                            `https://graph.facebook.com/v20.0/${id}/photos?access_token=${accessToken}`,
+                            {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    url: media.path,
+                                    published: false, // Грузим, но не публикуем сразу
+                                }),
+                            },
+                            'upload images slides'
+                        )
+                    ).json();
+                    return { media_fbid: photoId };
+                })
+            );
+
+        // Публикуем пост с прикрепленными фото
+        const { id: postId, permalink_url } = await (
+            await this.fetch(
+                `https://graph.facebook.com/v20.0/${id}/feed?access_token=${accessToken}&fields=id,permalink_url`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...(uploadPhotos?.length ? { attached_media: uploadPhotos } : {}),
+                        ...(firstPost?.settings?.url ? { link: firstPost.settings.url } : {}),
+                        message: firstPost.message,
+                        published: true,
+                    }),
+                },
+                'finalize upload'
+            )
+        ).json();
+
+        finalUrl = permalink_url;
+        finalId = postId;
     }
 
+    // === ОБРАБОТКА КОММЕНТАРИЕВ ===
     const postsArray = [];
-    let commentId = finalId;
-    for (const comment of comments) {
-      const data = await (
-        await this.fetch(
-          `https://graph.facebook.com/v20.0/${commentId}/comments?access_token=${accessToken}&fields=id,permalink_url`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              ...(comment.media?.length
-                ? { attachment_url: comment.media[0].path }
-                : {}),
-              message: comment.message,
-            }),
-          },
-          'add comment'
-        )
-      ).json();
+    let commentId = finalId; // Комментируем созданный пост или историю (если API позволяет)
+    
+    // Внимание: API Фейсбука может не позволять комментировать Истории через API.
+    // Этот блок сработает корректно для постов в ленте.
+    if (comments.length > 0 && finalId) {
+        for (const comment of comments) {
+            try {
+                const data = await (
+                    await this.fetch(
+                        `https://graph.facebook.com/v20.0/${commentId}/comments?access_token=${accessToken}&fields=id,permalink_url`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ...(comment.media?.length ? { attachment_url: comment.media[0].path } : {}),
+                                message: comment.message,
+                            }),
+                        },
+                        'add comment'
+                    )
+                ).json();
 
-      commentId = data.id;
-      postsArray.push({
-        id: comment.id,
-        postId: data.id,
-        releaseURL: data.permalink_url,
-        status: 'success',
-      });
+                commentId = data.id;
+                postsArray.push({
+                    id: comment.id,
+                    postId: data.id,
+                    releaseURL: data.permalink_url,
+                    status: 'success',
+                });
+            } catch (e) {
+                console.error('Error posting comment:', e);
+                // Не прерываем весь процесс из-за ошибки комментария
+            }
+        }
     }
+
     return [
-      {
-        id: firstPost.id,
-        postId: finalId,
-        releaseURL: finalUrl,
-        status: 'success',
-      },
-      ...postsArray,
+        {
+            id: firstPost.id,
+            postId: finalId,
+            releaseURL: finalUrl,
+            status: 'success',
+        },
+        ...postsArray,
     ];
-  }
+}
 
   async analytics(
     id: string,

@@ -4,7 +4,7 @@ rvm-auto-admin.xyz {
     # ЭТА СТРОКА ВАЖНА:
     # Она говорит Caddy: "Создай локальный сертификат и не пытайся стучаться в Let's Encrypt TODO: убрать на проде"
     # TODO: убрать на проде
-    #tls internal
+     tls internal
 
     # Логирование (полезно для отладки)
     log {
@@ -19,17 +19,5 @@ rvm-auto-admin.xyz {
     # 2. Основной сайт (Postiz)
     handle {
         reverse_proxy postiz:5000
-    }
-    handle /privacy {
-        root * /srv             # Ищем файлы в папке /srv (это твоя папка legal)
-        try_files /privacy.html # Отдаем конкретный файл
-        file_server             # Включаем модуль раздачи файлов
-    }
-
-    # Если запрашивают /terms
-    handle /terms {
-        root * /srv
-        try_files /terms.html
-        file_server
     }
 }

@@ -2,9 +2,11 @@ module.exports = {
     apps: [
       {
         name: "postiz-backend",
-        script: "dist/apps/backend/main.js",
+        script: "apps/backend/dist/apps/backend/src/main.js",
         env: {
           NODE_ENV: "production",
+          DEBUG: "app:*",
+          LOG_LEVEL: "info",
         },
       },
       {
@@ -13,19 +15,19 @@ module.exports = {
         args: "start apps/frontend -p 4200",
         env: {
           NODE_ENV: "production",
-          HOSTNAME: "0.0.0.0",
+          HOSTNAME: "0.0.0.0"
         },
       },
       {
         name: "postiz-workers",
-        script: "dist/apps/workers/main.js",
+        script: "apps/workers/dist/apps/workers/src/main.js",
         env: {
           NODE_ENV: "production",
         },
       },
       {
         name: "postiz-cron",
-        script: "dist/apps/cron/main.js",
+        script: "apps/cron/dist/apps/cron/src/main.js",
         env: {
           NODE_ENV: "production",
         },

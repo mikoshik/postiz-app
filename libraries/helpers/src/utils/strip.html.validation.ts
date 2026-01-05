@@ -131,6 +131,17 @@ const underlineMap = {
   '0': '0̲',
 };
 
+// Удаляет пустые и лишние <p> теги из HTML контента
+const cleanExcessParagraphTags = (html: string): string => {
+  // Удаляет пустые <p> теги и теги которые содержат только пробелы/переносы
+  let cleaned = html.replace(/<p[^>]*>\s*<\/p>/gi, '');
+  
+  // Заменяет несколько подряд идущих </p><p> на единый перевод строки
+  cleaned = cleaned.replace(/<\/p>\s*<p[^>]*>/gi, '\n');
+  
+  return cleaned;
+};
+
 export const stripHtmlValidation = (
   type: 'none' | 'normal' | 'markdown' | 'html',
   val: string,
@@ -143,10 +154,20 @@ export const stripHtmlValidation = (
     return val;
   }
 
-  const value = serialize(parseFragment(val));
+  // Очищаем лишние <p> теги перед дальнейшей обработкой
+  const cleanedVal = cleanExcessParagraphTags(val);
+  const value = serialize(parseFragment(cleanedVal));
 
   if (type === 'html') {
-    return striptags(convertMention(value, convertMentionFunction), [
+    // First convert <br> tags to newlines, then process other tags
+    const withLineBreaks = value
+      .replace(/<br\s*\/?>/gi, '\n') // Convert <br> to newline
+      .replace(/&amp;/gi, '&')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'");
+    
+    return striptags(convertMention(withLineBreaks, convertMentionFunction), [
       'ul',
       'li',
       'h1',
@@ -158,11 +179,7 @@ export const stripHtmlValidation = (
       'a',
     ])
       .replace(/&gt;/gi, '>')
-      .replace(/&lt;/gi, '<')
-      .replace(/&amp;/gi, '&')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'");
+      .replace(/&lt;/gi, '<');
   }
 
   if (type === 'markdown') {
@@ -216,9 +233,13 @@ export const stripHtmlValidation = (
     .replace(/&nbsp;/gi, ' ')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
-    .replace(/^<p[^>]*>/i, '')
-    .replace(/<p[^>]*>/gi, '\n')
-    .replace(/<\/p>/gi, '');
+    .replace(/<br\s*\/?>/gi, '\n') // Convert <br> tags to newlines
+    .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n') // Replace </p><p> with double newline (paragraph break)
+    .replace(/<p[^>]*><\/p>/gi, '\n') // Empty paragraphs become single newline
+    .replace(/^<p[^>]*>/i, '') // Remove first opening <p>
+    .replace(/<p[^>]*>/gi, '\n\n') // Replace remaining opening <p> with double newline
+    .replace(/<\/p>$/gi, '') // Remove last closing </p>
+    .replace(/<\/p>/gi, ''); // Remove remaining closing </p>
 
   if (none) {
     return striptags(html).replace(/&gt;/gi, '>').replace(/&lt;/gi, '<');

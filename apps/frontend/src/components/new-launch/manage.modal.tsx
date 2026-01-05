@@ -306,15 +306,15 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     <>
       <div
         className={clsx(
-          'flex flex-col md:flex-row bg-newBgLineColor gap-[1px] rounded-[24px] trz'
+          'flex flex-col lg:flex-row bg-newBgLineColor gap-[1px] rounded-[24px] trz w-full max-w-full mx-auto overflow-hidden'
         )}
       >
         <div
           className={clsx(
-            'flex flex-1 flex-col gap-[16px] transition-all duration-700 whitespace-nowrap bg-newBgColorInner rounded-s-[24px]'
+            'flex flex-1 flex-col gap-[16px] transition-all duration-700 bg-newBgColorInner rounded-s-[24px] min-w-0 overflow-hidden'
           )}
         >
-          <div className="relative flex gap-[20px] flex-col flex-1 rounded-[4px] p-[24px] pt-0">
+          <div className="relative flex gap-[20px] flex-col flex-1 rounded-[4px] p-[16px] pt-0 overflow-hidden">
             <TopTitle
               extraClass="h-[75px]"
               titleSize="text-[24px]"
@@ -335,119 +335,112 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             </TopTitle>
 
             <PicksSocialsComponent toolTip={true} />
-            <div>
+            <div className="overflow-hidden">
               {!existingData.integration && <SelectCurrent />}
               <div className="flex gap-[4px]">
-                <div className="flex-1 editor text-textColor gap-[10px] flex-col flex">
+                <div className="flex-1 editor text-textColor gap-[10px] flex-col flex min-w-0 overflow-hidden">
                   {!hide && <EditorWrapper totalPosts={1} value="" />}
                 </div>
               </div>
             </div>
           </div>
-          <div className="relative min-h-[68px] flex flex-col rounded-[4px]">
-            <div className="gap-[10px] relative flex flex-col justify-center items-center min-h-full px-[24px]">
-              <div
-                id="add-edit-post-dialog-buttons"
-                className="flex flex-row flex-wrap w-full h-full gap-[10px] justify-end items-center"
-              >
-                <div className="flex justify-center items-center gap-[5px] h-full">
-                  {!!existingData.integration && (
-                    <Button
-                      onClick={deletePost}
-                      className="rounded-[4px] border-2 border-red-400 text-red-400"
-                      secondary={true}
-                      disabled={loading || locked}
-                    >
-                      {t('delete_post', 'Delete Post')}
-                    </Button>
-                  )}
+          <div className="relative min-h-[68px] flex flex-col rounded-[4px] px-[16px] pb-[16px]">
+            <div className="gap-[10px] relative flex flex-row flex-wrap justify-end items-center min-h-full w-full">
+              {!!existingData.integration && (
+                <Button
+                  onClick={deletePost}
+                  className="rounded-[4px] border-2 border-red-400 text-red-400"
+                  secondary={true}
+                  disabled={loading || locked}
+                >
+                  {t('delete_post', 'Delete Post')}
+                </Button>
+              )}
 
-                  {!addEditSets && !dummy && (
-                    <Button
-                      onClick={schedule('draft')}
-                      className="rounded-[4px] border-2 border-customColor21"
-                      secondary={true}
-                      disabled={
-                        selectedIntegrations.length === 0 || loading || locked
-                      }
-                    >
-                      {t('save_as_draft', 'Save as draft')}
-                    </Button>
-                  )}
+              {!addEditSets && !dummy && (
+                <Button
+                  onClick={schedule('draft')}
+                  className="rounded-[4px] border-2 border-customColor21"
+                  secondary={true}
+                  disabled={
+                    selectedIntegrations.length === 0 || loading || locked
+                  }
+                >
+                  {t('save_as_draft', 'Save as draft')}
+                </Button>
+              )}
 
-                  {addEditSets && (
-                    <Button
-                      className="rounded-[4px] relative group"
-                      disabled={
-                        selectedIntegrations.length === 0 || loading || locked
-                      }
-                      onClick={schedule('draft')}
+              {addEditSets && (
+                <Button
+                  className="rounded-[4px] relative group"
+                  disabled={
+                    selectedIntegrations.length === 0 || loading || locked
+                  }
+                  onClick={schedule('draft')}
+                >
+                  Save Set
+                </Button>
+              )}
+              {!addEditSets && (
+                <Button
+                  className="rounded-[4px] relative group"
+                  disabled={
+                    selectedIntegrations.length === 0 || loading || locked
+                  }
+                >
+                  <div className="flex justify-center items-center gap-[5px] h-full">
+                    <div
+                      className="h-full flex items-center text-white whitespace-nowrap"
+                      onClick={schedule('schedule')}
                     >
-                      Save Set
-                    </Button>
-                  )}
-                  {!addEditSets && (
-                    <Button
-                      className="rounded-[4px] relative group"
-                      disabled={
-                        selectedIntegrations.length === 0 || loading || locked
-                      }
-                    >
-                      <div className="flex justify-center items-center gap-[5px] h-full">
-                        <div
-                          className="h-full flex items-center text-white"
-                          onClick={schedule('schedule')}
+                      {selectedIntegrations.length === 0
+                        ? t(
+                            'select_channels_from_circles',
+                            'Select channels from the circles above'
+                          )
+                        : dummy
+                        ? 'Create output'
+                        : !existingData?.integration
+                        ? t('add_to_calendar', 'Add to calendar')
+                        : existingData?.posts?.[0]?.state === 'DRAFT'
+                        ? t('schedule', 'Schedule')
+                        : t('update', 'Update')}
+                    </div>
+                    {!dummy && (
+                      <div className="h-full flex items-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 18 18"
+                          fill="none"
                         >
-                          {selectedIntegrations.length === 0
-                            ? t(
-                                'select_channels_from_circles',
-                                'Select channels from the circles above'
-                              )
-                            : dummy
-                            ? 'Create output'
-                            : !existingData?.integration
-                            ? t('add_to_calendar', 'Add to calendar')
-                            : existingData?.posts?.[0]?.state === 'DRAFT'
-                            ? t('schedule', 'Schedule')
-                            : t('update', 'Update')}
+                          <path
+                            d="M15.0233 7.14804L9.39828 12.773C9.34604 12.8253 9.284 12.8668 9.21572 12.8951C9.14743 12.9234 9.07423 12.938 9.00031 12.938C8.92639 12.938 8.8532 12.9234 8.78491 12.8951C8.71662 12.8668 8.65458 12.8253 8.60234 12.773L2.97734 7.14804C2.8718 7.04249 2.8125 6.89934 2.8125 6.75007C2.8125 6.6008 2.8718 6.45765 2.97734 6.3521C3.08289 6.24655 3.22605 6.18726 3.37531 6.18726C3.52458 6.18726 3.66773 6.24655 3.77328 6.3521L9.00031 11.5798L14.2273 6.3521C14.2796 6.29984 14.3417 6.25838 14.4099 6.2301C14.4782 6.20181 14.5514 6.18726 14.6253 6.18726C14.6992 6.18726 14.7724 6.20181 14.8407 6.2301C14.909 6.25838 14.971 6.29984 15.0233 6.3521C15.0755 6.40436 15.117 6.46641 15.1453 6.53469C15.1736 6.60297 15.1881 6.67616 15.1881 6.75007C15.1881 6.82398 15.1736 6.89716 15.1453 6.96545C15.117 7.03373 15.0755 7.09578 15.0233 7.14804Z"
+                            fill="white"
+                          />
+                        </svg>
+                        <div
+                          onClick={schedule('now')}
+                          className={clsx(
+                            'hidden group-hover:flex hover:flex flex-col justify-center absolute start-0 top-[100%] w-full h-[40px] bg-customColor22 border border-tableBorder',
+                            (locked || loading) &&
+                              'cursor-not-allowed pointer-events-none opacity-50'
+                          )}
+                        >
+                          {t('post_now', 'Post now')}
                         </div>
-                        {!dummy && (
-                          <div className="h-full flex items-center">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="18"
-                              height="18"
-                              viewBox="0 0 18 18"
-                              fill="none"
-                            >
-                              <path
-                                d="M15.0233 7.14804L9.39828 12.773C9.34604 12.8253 9.284 12.8668 9.21572 12.8951C9.14743 12.9234 9.07423 12.938 9.00031 12.938C8.92639 12.938 8.8532 12.9234 8.78491 12.8951C8.71662 12.8668 8.65458 12.8253 8.60234 12.773L2.97734 7.14804C2.8718 7.04249 2.8125 6.89934 2.8125 6.75007C2.8125 6.6008 2.8718 6.45765 2.97734 6.3521C3.08289 6.24655 3.22605 6.18726 3.37531 6.18726C3.52458 6.18726 3.66773 6.24655 3.77328 6.3521L9.00031 11.5798L14.2273 6.3521C14.2796 6.29984 14.3417 6.25838 14.4099 6.2301C14.4782 6.20181 14.5514 6.18726 14.6253 6.18726C14.6992 6.18726 14.7724 6.20181 14.8407 6.2301C14.909 6.25838 14.971 6.29984 15.0233 6.3521C15.0755 6.40436 15.117 6.46641 15.1453 6.53469C15.1736 6.60297 15.1881 6.67616 15.1881 6.75007C15.1881 6.82398 15.1736 6.89716 15.1453 6.96545C15.117 7.03373 15.0755 7.09578 15.0233 7.14804Z"
-                                fill="white"
-                              />
-                            </svg>
-                            <div
-                              onClick={schedule('now')}
-                              className={clsx(
-                                'hidden group-hover:flex hover:flex flex-col justify-center absolute start-0 top-[100%] w-full h-[40px] bg-customColor22 border border-tableBorder',
-                                (locked || loading) &&
-                                  'cursor-not-allowed pointer-events-none opacity-50'
-                              )}
-                            >
-                              {t('post_now', 'Post now')}
-                            </div>
-                          </div>
-                        )}
                       </div>
-                    </Button>
-                  )}
-                </div>
-              </div>
+                    )}
+                  </div>
+                </Button>
+              )}
             </div>
           </div>
         </div>
         <div
           className={clsx(
-            'px-[24px] flex-grow rounded-e-[24px] w-[650px] max-w-[650px] min-w-[650px] flex gap-[20px] flex-col rounded-[4px] bg-newBgColorInner border-newBgLineColor flex-1 transition-all duration-700'
+            'px-[16px] rounded-e-[24px] w-full lg:w-[500px] lg:max-w-[500px] lg:min-w-[400px] flex gap-[20px] flex-col rounded-[4px] bg-newBgColorInner border-newBgLineColor transition-all duration-700 flex-shrink-0'
           )}
         >
           <div>
@@ -486,7 +479,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               </svg>
             </TopTitle>
           </div>
-          <div className="flex-1 flex flex-col pt-0 pb-[24px]">
+          <div className="flex-1 flex flex-col pt-0 pb-[16px] overflow-auto">
             <ShowAllProviders ref={ref} />
           </div>
         </div>

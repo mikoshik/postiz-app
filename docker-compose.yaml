@@ -5,58 +5,58 @@ services:
     container_name: postiz-caddy
     restart: always
     ports:
-      - "80:80"   # HTTP (для автоматического редиректа)
-      - "443:443" # HTTPS (защищенный)
+      - "80:80"     # HTTP (Внешний доступ)
+      - "443:443"   # HTTPS (Внешний доступ)
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile # Конфиг
       - caddy_data:/data # Хранилище сертификатов
       - caddy_config:/config
+      - ./legal:/srv
     networks:
-      - postiz-network
+      postiz-network:
+          aliases:            # Важно
+            - rvm-auto-admin.xyz
     depends_on:
+      # Зависимость от обоих сервисов
       - postiz
       - postiz-python-service
 
+
+
   # === ОСНОВНОЕ ПРИЛОЖЕНИЕ ===
   postiz:
-    build:
-      context: .
-      dockerfile: Dockerfile # Или Dockerfile (для продакшена лучше обычный)
-    container_name: postiz
+    image: hiroxito/postiz-app:1.5.1
     restart: always
+    env_file:
+      - .env
     environment:
-      # ВАЖНО: Тут должен быть твой реальный домен с https
+      # Переменные окружения (оставлены как в вашем файле)
+      # URL 
       MAIN_URL: "https://rvm-auto-admin.xyz"
       FRONTEND_URL: "https://rvm-auto-admin.xyz"
       NEXT_PUBLIC_BACKEND_URL: "https://rvm-auto-admin.xyz/api"
-      
-      # Настройка Python сервиса (теперь он доступен через путь /ai-api)
-      # Но внутри сети докера они общаются напрямую:
-      PYTHON_SERVICE_URL: "http://postiz-python-service:8000"
-      
-      # Остальные настройки (Секреты бери из .env файла на сервере!)
-      JWT_SECRET: "${JWT_SECRET}"
+      BACKEND_INTERNAL_URL: "http://localhost:3000"
+      # База данных и кэш
       DATABASE_URL: "postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local"
       REDIS_URL: "redis://postiz-redis:6379"
-      BACKEND_INTERNAL_URL: "http://localhost:3000"
-      IS_GENERAL: "true"
-      DISABLE_REGISTRATION: "false"
-      STORAGE_PROVIDER: "local"
-      UPLOAD_DIRECTORY: "/uploads"
-      NEXT_PUBLIC_UPLOAD_DIRECTORY: "/uploads"
-      
-      # API Keys (тоже из .env)
-      OPENAI_API_KEY: "${OPENAI_API_KEY}"
-      TELEGRAM_BOT_NAME: "${TELEGRAM_BOT_NAME}"
-      TELEGRAM_TOKEN: "${TELEGRAM_TOKEN}"
-      FACEBOOK_APP_ID: "${FACEBOOK_APP_ID}"
-      FACEBOOK_APP_SECRET: "${FACEBOOK_APP_SECRET}"
-      TIKTOK_CLIENT_ID: "${TIKTOK_CLIENT_ID}"
-      TIKTOK_CLIENT_SECRET: "${TIKTOK_CLIENT_SECRET}"
+      NODE_TLS_REJECT_UNAUTHORIZED: "0" # <--- ДОБАВЬ ЭТО (Разрешает любые SSL сертификаты) # TODO: убрать на проде 
+      NTBA_FIX_350: 1
     volumes:
+      # === ДАННЫЕ ===
       - postiz-config:/config/
       - postiz-uploads:/uploads/
-    # Порты убрали! Доступ только через Caddy.
+      
+      # === ИСПРАВЛЕНИЕ ОШИБКИ NGINX (Монтируем исправленный файл) ===
+      # Это решает проблему 'getpwnam("www") failed'
+      - ./var/docker/nginx.conf:/etc/nginx/nginx.conf
+      - ./ecosystem.config.js:/app/ecosystem.config.js
+      
+      # === ЛОГИ (для отладки) ===
+      - ./logs/nginx:/var/log/nginx
+      # === PRISMA ===
+      - ./libraries/nestjs-libraries/src/database/prisma:/app/libraries/nestjs-libraries/src/database/prisma
+
+    # УДАЛЕНО: Секция ports удалена, чтобы избежать конфликта с Caddy.
     networks:
       - postiz-network
     depends_on:
@@ -99,7 +99,7 @@ services:
     networks:
       - postiz-network
 
-  # === ТВОЙ PYTHON СЕРВИС ===
+  # === PYTHON СЕРВИС ===
   postiz-python-service:
     build:
       context: ./python_service
@@ -107,26 +107,22 @@ services:
     container_name: postiz-python-service
     restart: always
     environment:
-      NINE_API_KEY: "${NINE_API_KEY}"
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
-      # PYTHONUNBUFFERED=1 чтобы логи были видны сразу
+      NINE_API_KEY: "${NINE_API_KEY}"
       PYTHONUNBUFFERED: "1"
-
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --root-path /ai-api
+    # УДАЛЕНО: Секция ports удалена, чтобы избежать конфликта с Caddy.
     networks:
       - postiz-network
-    healthcheck:
-      # Используем встроенный модуль Python вместо curl
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; print(urllib.request.urlopen('http://localhost:8000/health').getcode())\" || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+
 volumes:
+  # === ИМЕНОВАННЫЕ ТОМА ДЛЯ ВСЕХ СЕРВИСОВ ===
   postgres-volume:
   postiz-redis-data:
   postiz-config:
   postiz-uploads:
-  caddy_data:   # Важно для хранения SSL сертификатов
+  # Добавлены недостающие тома для Caddy (Решает ошибку "undefined volume caddy_data")
+  caddy_data:
   caddy_config:
 
 networks:

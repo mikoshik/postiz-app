@@ -45,10 +45,10 @@ const globalParseState = {
   featuresGroups: [] as FeatureGroup[],
   lastParsedText: '',
 };
-
+const PYTHON_API_URL = process.env.NEXT_PUBLIC_PYTHON_SERVICE_URL || 'https://rvm-auto-admin.xyz/ai-api';
 // Функция парсинга текста через API
 const parseTextWithAI = async (text: string): Promise<PostConfigResponse> => {
-  const response = await fetch('http://localhost:8000/api/post-config', {
+  const response = await fetch(`${PYTHON_API_URL}/api/post-config`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
@@ -535,7 +535,7 @@ const NineNineNinePreview: FC<{ maximumCharacters?: number }> = () => {
 
   // Загружаем структуру полей для получения options и labels
   useEffect(() => {
-    fetch('http://localhost:8000/api/post-config', {
+    fetch(`${PYTHON_API_URL}/api/post-config`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: '' }), // Пустой текст — только структура

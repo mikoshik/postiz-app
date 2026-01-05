@@ -3,6 +3,7 @@ fastapi
 uvicorn[standard]
 requests
 python-dotenv
+python-multipart
 
 # Pydantic для валидации
 pydantic
@@ -12,3 +13,7 @@ langchain
 langchain-openai
 langchain-core
 openai
+
+# Image processing
+Pillow
+pillow-heif

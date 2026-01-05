@@ -65,4 +65,7 @@ i18n.cache
 __pycache__
 *.pyc
 python_service/venv
-
+/logs
+hosts — ярлык.lnk
+.env.development
+.env.product

@@ -2,9 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Установка системных зависимостей
+# Установка системных зависимостей (включая FFmpeg для конвертации видео)
 RUN apt-get update && apt-get install -y \
     gcc \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Копируем requirements и устанавливаем зависимости
@@ -18,4 +19,5 @@ COPY . .
 EXPOSE 8000
 
 # Запуск приложения
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/ai-api"]
