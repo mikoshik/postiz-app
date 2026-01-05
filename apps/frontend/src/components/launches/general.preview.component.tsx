@@ -16,6 +16,11 @@ export const GeneralPreviewComponent: FC<{
   const mediaDir = useMediaDirectory();
 
   const renderContent = topValue.map((p) => {
+    // 🔍 ЛОГИРОВАНИЕ: Входящий HTML в preview компонент
+    console.log('=== PREVIEW Component - Input ===');
+    console.log('p.content (HTML from store):', p.content);
+    console.log('p.content length:', p.content?.length);
+    
     const newContent = stripHtmlValidation(
       'normal',
       p.content.replace(
@@ -26,6 +31,13 @@ export const GeneralPreviewComponent: FC<{
       ),
       true
     );
+
+    // 🔍 ЛОГИРОВАНИЕ: После преобразования через 
+    console.log('=== After  in PREVIEW ===');
+    console.log('newContent (plain text):', newContent);
+    console.log('newContent length:', newContent.length);
+    console.log('Escaped:', JSON.stringify(newContent));
+    console.log('=====================================');
 
     const { start, end } = textSlicer(
       integration?.identifier || '',

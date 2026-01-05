@@ -62,7 +62,7 @@ import HardBreak from '@tiptap/extension-hard-break';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { EditorView } from '@tiptap/pm/view';
 
-// Extension to preserve line breaks when pasting plain text
+// Extension to preserve line breaks when pasting plain text это хрень преобразует в html все что приходит в editor 
 const PreserveLineBreaksOnPaste = Extension.create({
   name: 'preserveLineBreaksOnPaste',
 
@@ -604,7 +604,22 @@ export const Editor: FC<{
   const { getRootProps, isDragActive } = useDropzone({ onDrop });
 
   const valueWithoutHtml = useMemo(() => {
-    return stripHtmlValidation('normal', props.value || '', true);
+    // 🔍 ЛОГИРОВАНИЕ: Что приходит из props (из state/store)
+    console.log('=== Props.value (from Store) ===');
+    console.log('props.value HTML:', props.value);
+    console.log('props.value length:', props.value?.length);
+    console.log('Escaped:', JSON.stringify(props.value));
+    
+    const result = stripHtmlValidation('normal', props.value || '', true);
+    
+    // 🔍 ЛОГИРОВАНИЕ: После преобразования через stripHtmlValidation
+    console.log('=== After stripHtmlValidation(normal, ..., true) ===');
+    console.log('Result text:', result);
+    console.log('Result length:', result.length);
+    console.log('Escaped:', JSON.stringify(result));
+    console.log('================================');
+    
+    return result;
   }, [props.value]);
 
   const addText = useCallback(
@@ -964,7 +979,16 @@ export const OnlyEditor = forwardRef<
     // @ts-ignore
     onPaste: paste,
     onUpdate: (innerProps) => {
-      onChange?.(innerProps.editor.getHTML());
+      const html = innerProps.editor.getHTML();
+      
+      // 🔍 ЛОГИРОВАНИЕ: Внутреннее состояние TipTap
+      console.log('=== TipTap Internal State (onUpdate) ===');
+      console.log('HTML from TipTap:', html);
+      console.log('HTML length:', html.length);
+      console.log('Escaped:', JSON.stringify(html));
+      console.log('=====================================');
+      
+      onChange?.(html);
     },
   });
 
