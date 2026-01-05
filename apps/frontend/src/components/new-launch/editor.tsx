@@ -494,8 +494,12 @@ export const Editor: FC<{
     [uppy]
   );
   const paste = useCallback(
-    async (event: ClipboardEvent | File[]) => {
-      // @ts-ignore
+    async (event: globalThis.ClipboardEvent | File[]) => {
+      // Handle file array case
+      if (Array.isArray(event)) {
+        return;
+      }
+
       const clipboardItems = event.clipboardData?.items;
       console.log('Available clipboard formats:', event);
 
@@ -504,15 +508,15 @@ export const Editor: FC<{
       }
 
       // Log the raw text content from the clipboard
-      const text = 'clipboardData' in event ? event.clipboardData?.getData('text/plain') : null;
-      console.log('Raw text content from clipboard:', text);
+      const text = event.clipboardData?.getData('text/plain');
+      console.log('Raw text content from clipboard:', JSON.stringify(text));
 
       // Log the HTML content from the clipboard if available
-      const html = 'clipboardData' in event ? event.clipboardData?.getData('text/html') : null;
+      const html = event.clipboardData?.getData('text/html');
       console.log('HTML content from clipboard:', html);
 
-      // @ts-ignore
-      for (const item of clipboardItems) {
+      for (let i = 0; i < clipboardItems.length; i++) {
+        const item = clipboardItems[i];
         if (item.kind === 'file') {
           const file = item.getAsFile();
           if (file) {
@@ -719,7 +723,7 @@ export const OnlyEditor = forwardRef<
     editorType: 'normal' | 'markdown' | 'html';
     value: string;
     onChange: (value: string) => void;
-    paste?: (event: ClipboardEvent | File[]) => void;
+    paste?: (event: globalThis.ClipboardEvent | File[]) => void;
   }
 >(({ editorType, value, onChange, paste }, ref) => {
   const fetch = useFetch();
@@ -884,8 +888,47 @@ export const OnlyEditor = forwardRef<
     content: value || '',
     shouldRerenderOnTransaction: true,
     immediatelyRender: false,
-    // @ts-ignore
-    onPaste: paste,
+    editorProps: {
+      handlePaste: (view, event, slice) => {
+        // Call the paste handler for file uploads
+        if (paste) {
+          paste(event);
+        }
+
+        // Check if there's HTML content - if yes, let Tiptap handle it normally
+        const html = event.clipboardData?.getData('text/html');
+        if (html && html.trim()) {
+          return false; // Let Tiptap handle HTML
+        }
+
+        // Handle plain text paste with proper line break conversion
+        const text = event.clipboardData?.getData('text/plain');
+        if (text) {
+          // Convert plain text to HTML with proper paragraph and line break handling
+          // Split by double line breaks to create paragraphs
+          const paragraphs = text
+            .split(/\r\n\r\n|\n\n|\r\r/)
+            .filter((p) => p.trim().length > 0);
+
+          const htmlContent = paragraphs
+            .map((paragraph) => {
+              // Within each paragraph, replace single line breaks with <br>
+              const withBreaks = paragraph
+                .split(/\r\n|\n|\r/)
+                .filter((line) => line.trim().length > 0)
+                .join('<br>');
+              return `<p>${withBreaks}</p>`;
+            })
+            .join('');
+
+          // Insert the converted HTML
+          editor?.commands.insertContent(htmlContent);
+          return true; // Prevent default paste behavior
+        }
+
+        return false; // Let Tiptap handle other cases
+      },
+    },
     onUpdate: (innerProps) => {
       onChange?.(innerProps.editor.getHTML());
     },
