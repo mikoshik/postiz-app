@@ -87,13 +87,45 @@ const CheckTikTokValidity: FC<{
 const TikTokSettings: FC<{
   values?: any;
 }> = (props) => {
-  const { watch, register } = useSettings();
+  const { watch, register, setValue } = useSettings();
   const { value } = useIntegration();
   const t = useT();
 
   const isTitle = useMemo(() => {
     return value?.[0].image.some((p) => p.path.indexOf('mp4') === -1);
   }, [value]);
+
+  // Функция для парсинга текста и извлечения марки и года
+  const parseCarInfo = useCallback((text: string) => {
+    if (!text) return null;
+
+    // Удаляем HTML теги для парсинга
+    const cleanText = text.replace(/<[^>]*>/g, '\n').replace(/\s+/g, ' ');
+
+    // Ищем строку с "Марка:" и извлекаем только марку автомобиля (до следующего ▪️ или переноса строки)
+    const brandMatch = cleanText.match(/Марка:\s*([^▪️\n]+)/i);
+    const brand = brandMatch ? brandMatch[1].trim() : null;
+
+    // Ищем год (4 цифры после "Год:", но только сами цифры)
+    const yearMatch = cleanText.match(/Год:\s*(\d{4})/i);
+    const year = yearMatch ? yearMatch[1] : null;
+
+    if (brand && year) {
+      return `${brand} ${year}`;
+    }
+
+    return null;
+  }, []);
+
+  // Автоматически заполняем заголовок при изменении контента
+  useEffect(() => {
+    if (value?.[0]?.content && isTitle) {
+      const carInfo = parseCarInfo(value[0].content);
+      if (carInfo) {
+        setValue('title', carInfo);
+      }
+    }
+  }, [value, isTitle, parseCarInfo, setValue]);
 
   const disclose = watch('disclose');
   const brand_organic_toggle = watch('brand_organic_toggle');
