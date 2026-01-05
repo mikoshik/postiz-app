@@ -1,5 +1,6 @@
 import striptags from 'striptags';
 import { parseFragment, serialize } from 'parse5';
+import { load } from 'cheerio';
 
 const bold = {
   a: '𝗮',
@@ -211,14 +212,37 @@ export const stripHtmlValidation = (
     return value;
   }
 
-  const html = (value || '')
+  // Improved HTML to plain text conversion with proper line break handling
+  const $ = load(value);
+
+  // First, replace <br> with temporary marker to preserve them
+  $('br').replaceWith('|||BR|||');
+
+  // Handle paragraphs - extract text and add double line break between paragraphs
+  const paragraphs: string[] = [];
+  $('p').each((_, elem) => {
+    const $elem = $(elem);
+    let text = $elem.text();
+    // Convert markers back to single line breaks
+    text = text.replace(/\|\|\|BR\|\|\|/g, '\n');
+    paragraphs.push(text);
+  });
+
+  // Join paragraphs with double line breaks
+  let html = paragraphs.join('\n\n');
+
+  // Clean up excessive line breaks (more than 2 consecutive)
+  html = html.replace(/\n{3,}/g, '\n\n');
+
+  // Trim whitespace from start and end
+  html = html.trim();
+
+  // Apply HTML entities decoding
+  html = html
     .replace(/&amp;/gi, '&')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/^<p[^>]*>/i, '')
-    .replace(/<p[^>]*>/gi, '\n')
-    .replace(/<\/p>/gi, '');
+    .replace(/&#39;/gi, "'");
 
   if (none) {
     return striptags(html).replace(/&gt;/gi, '>').replace(/&lt;/gi, '<');
