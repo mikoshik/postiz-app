@@ -439,13 +439,44 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     const [firstPost] = postDetails;
 
     const isPhoto = (firstPost?.media?.[0]?.path?.indexOf('mp4') || -1) === -1;
+
+    // Формируем post_info независимо от режима публикации
+    const postInfo = {
+      // Для фото: title из settings.title, для видео: title из message
+      ...(isPhoto
+        ? firstPost?.settings?.title
+          ? { title: firstPost.settings.title }
+          : {}
+        : firstPost.message
+        ? { title: firstPost.message }
+        : {}),
+      // Description только для фото
+      ...(isPhoto && firstPost.message ? { description: firstPost.message } : {}),
+      privacy_level:
+        firstPost.settings.privacy_level || 'PUBLIC_TO_EVERYONE',
+      disable_duet: !firstPost.settings.duet || false,
+      disable_comment: !firstPost.settings.comment || false,
+      disable_stitch: !firstPost.settings.stitch || false,
+      is_aigc: firstPost.settings.video_made_with_ai || false,
+      brand_content_toggle:
+        firstPost.settings.brand_content_toggle || false,
+      brand_organic_toggle:
+        firstPost.settings.brand_organic_toggle || false,
+      // auto_add_music только для фото
+      ...(isPhoto
+        ? {
+            auto_add_music: firstPost.settings.autoAddMusic === 'yes',
+          }
+        : {}),
+    };
+
     const {
       data: { publish_id },
     } = await (
       await this.fetch(
         `https://open.tiktokapis.com/v2/post/publish${this.postingMethod(
           firstPost.settings.content_posting_method,
-          (firstPost?.media?.[0]?.path?.indexOf('mp4') || -1) === -1
+          isPhoto
         )}`,
         {
           method: 'POST',
@@ -454,61 +485,31 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
             Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            ...((firstPost?.settings?.content_posting_method ||
-              'DIRECT_POST') === 'DIRECT_POST'
-              ? {
-                  post_info: {
-                    ...((firstPost?.settings?.title && isPhoto) ||
-                    (firstPost.message && !isPhoto)
-                      ? {
-                          title: isPhoto
-                            ? firstPost.settings.title
-                            : firstPost.message,
-                        }
-                      : {}),
-                    ...(isPhoto ? { description: firstPost.message } : {}),
-                    privacy_level:
-                      firstPost.settings.privacy_level || 'PUBLIC_TO_EVERYONE',
-                    disable_duet: !firstPost.settings.duet || false,
-                    disable_comment: !firstPost.settings.comment || false,
-                    disable_stitch: !firstPost.settings.stitch || false,
-                    is_aigc: firstPost.settings.video_made_with_ai || false,
-                    brand_content_toggle:
-                      firstPost.settings.brand_content_toggle || false,
-                    brand_organic_toggle:
-                      firstPost.settings.brand_organic_toggle || false,
-                    ...((firstPost?.media?.[0]?.path?.indexOf('mp4') || -1) ===
-                    -1
-                      ? {
-                          auto_add_music:
-                            firstPost.settings.autoAddMusic === 'yes',
-                        }
-                      : {}),
-                  },
-                }
-              : {}),
-            ...((firstPost?.media?.[0]?.path?.indexOf('mp4') || -1) > -1
+            // Всегда добавляем post_info, независимо от режима
+            post_info: postInfo,
+            // source_info для видео
+            ...(isPhoto === false
               ? {
                   source_info: {
                     source: 'PULL_FROM_URL',
                     video_url: firstPost?.media?.[0]?.path!,
-                    ...(firstPost?.media?.[0]?.thumbnailTimestamp!
+                    ...(firstPost?.media?.[0]?.thumbnailTimestamp
                       ? {
                           video_cover_timestamp_ms:
-                            firstPost?.media?.[0]?.thumbnailTimestamp!,
+                            firstPost.media[0].thumbnailTimestamp,
                         }
                       : {}),
                   },
                 }
-              : {
+              : // source_info для фото
+                {
                   source_info: {
                     source: 'PULL_FROM_URL',
                     photo_cover_index: 0,
                     photo_images: firstPost.media?.map((p) => p.path),
                   },
                   post_mode:
-                    firstPost?.settings?.content_posting_method ===
-                    'DIRECT_POST'
+                    firstPost?.settings?.content_posting_method === 'DIRECT_POST'
                       ? 'DIRECT_POST'
                       : 'MEDIA_UPLOAD',
                   media_type: 'PHOTO',
