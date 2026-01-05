@@ -895,5 +895,5 @@ export const OnlyEditor = forwardRef<
     editor,
   }));
 
-  return <EditorContent editor={editor} />;
+  return <EditorContent className="tiptap-content" editor={editor} />;
 });

@@ -704,3 +704,11 @@ html[dir='rtl'] [dir='ltr'] {
 .copilotKitMessage a {
   color: var(--new-btn-text) !important;
 }
+
+.tiptap-content p {
+  margin-bottom: 1em;
+}
+
+.tiptap-content p:last-child {
+  margin-bottom: 0;
+}
