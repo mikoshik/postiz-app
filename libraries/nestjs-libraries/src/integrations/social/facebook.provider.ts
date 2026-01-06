@@ -7,9 +7,9 @@ import {
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import dayjs from 'dayjs';
-import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import { SocialAbstract, BadBody } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { FacebookDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/facebook.dto';
-import { DribbbleDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/dribbble.dto';
+import { timer } from '@gitroom/helpers/utils/timer';
 
 export class FacebookProvider extends SocialAbstract implements SocialProvider {
   identifier = 'facebook';
@@ -326,6 +326,104 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     }
   }
 
+  /**
+   * Checks the processing status of a Facebook video
+   * Polls every 10 seconds until video is ready or fails
+   * @param videoId - The video ID to check
+   * @param pageId - The page ID for generating the final URL
+   * @param accessToken - Access token for API requests
+   * @returns The final post URL and ID
+   */
+  private async waitForVideoProcessing(
+    videoId: string,
+    pageId: string,
+    accessToken: string
+  ): Promise<{ url: string; id: string }> {
+    console.log('=== Waiting for Video Processing ===');
+    console.log('Video ID:', videoId);
+    console.log('Checking status every 10 seconds...');
+
+    let attempts = 0;
+    const maxAttempts = 60; // Максимум 10 минут (60 * 10 секунд)
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      attempts++;
+      
+      try {
+        console.log(`Attempt ${attempts}/${maxAttempts}: Checking video status...`);
+
+        const statusResponse = await this.fetch(
+          `https://graph.facebook.com/v20.0/${videoId}?fields=status&access_token=${accessToken}`,
+          { method: 'GET' },
+          'check video processing status',
+          0,
+          true
+        );
+
+        const statusResult = await statusResponse.json();
+        console.log('Video status response:', JSON.stringify(statusResult, null, 2));
+
+        const status = statusResult?.status?.video_status;
+
+        if (status === 'ready') {
+          console.log('✅ Video processing complete!');
+          return {
+            url: `https://www.facebook.com/${pageId}/stories/${videoId}`,
+            id: videoId,
+          };
+        }
+
+        if (status === 'processing') {
+          console.log(`⏳ Video still processing (attempt ${attempts}/${maxAttempts})...`);
+        } else if (status === 'error') {
+          console.error('❌ Video processing failed with error status');
+          const handleError = this.handleErrors(JSON.stringify(statusResult));
+          throw new BadBody(
+            'facebook-video-processing-error',
+            JSON.stringify(statusResult),
+            Buffer.from(JSON.stringify(statusResult)),
+            handleError?.value || 'Video processing failed'
+          );
+        } else {
+          console.log(`ℹ️ Unknown status: ${status}, continuing to wait...`);
+        }
+
+        // Проверяем, не превысили ли максимальное количество попыток
+        if (attempts >= maxAttempts) {
+          console.error('❌ Video processing timeout: exceeded maximum wait time (10 minutes)');
+          throw new Error(
+            'Video processing timeout: Facebook is taking too long to process the video. Please check the video manually.'
+          );
+        }
+
+        // Ждём 10 секунд перед следующей проверкой
+        await timer(10000);
+
+      } catch (error) {
+        // Если это наша специальная ошибка BadBody, пробрасываем её дальше
+        if (error instanceof BadBody) {
+          throw error;
+        }
+
+        // Для других ошибок логируем и пробуем ещё раз
+        console.error('Error checking video status:', error);
+        
+        // Если превысили лимит попыток, выбрасываем ошибку
+        if (attempts >= maxAttempts) {
+          throw new Error(
+            `Failed to check video status after ${maxAttempts} attempts: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+        }
+
+        // Иначе ждём и пробуем снова
+        await timer(10000);
+      }
+    }
+  }
+
   async post(
     id: string,
     accessToken: string,
@@ -445,8 +543,8 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
                     method: 'POST',
                     headers: {
                         'Authorization': `OAuth ${accessToken}`,
-                        'offset': '0', // Начальная позиция для resumable upload
-                        'file_size': videoBuffer.length.toString(), // Общий размер файла
+                        'offset': '0',
+                        'file_size': videoBuffer.length.toString(),
                     },
                     body: videoBuffer,
                 });
@@ -503,31 +601,20 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
             console.log('Status:', finishResponse.status);
             console.log('Response:', JSON.stringify(finishResult, null, 2));
 
-            // Если Facebook вернул post_id, используем его
-            const actualPostId = finishResult.post_id || video_id;
+            // --- ШАГ 4: Ожидание обработки видео (аналогично TikTok) ---
+            console.log('=== Step 4: Waiting for Video Processing ===');
+            const { url: processedUrl, id: processedId } = await this.waitForVideoProcessing(
+                video_id,
+                pageId,
+                accessToken
+            );
 
-            finalId = actualPostId;
-            finalUrl = `https://www.facebook.com/${pageId}/stories/${actualPostId}`;
+            finalId = processedId;
+            finalUrl = processedUrl;
             
             console.log('=== Story Upload Complete ===');
-            console.log('Final Video ID:', video_id);
-            console.log('Final Post ID:', actualPostId);
+            console.log('Final Video ID:', finalId);
             console.log('Final URL:', finalUrl);
-            console.log('⏳ Note: Video is processing by Facebook. Story will appear in 1-5 minutes.');
-
-            // Опционально: проверяем статус обработки
-            try {
-                console.log('=== Checking Video Processing Status ===');
-                const statusResponse = await this.fetch(
-                    `https://graph.facebook.com/v20.0/${video_id}?fields=status&access_token=${accessToken}`,
-                    { method: 'GET' },
-                    'check video status'
-                );
-                const statusResult = await statusResponse.json();
-                console.log('Video processing status:', JSON.stringify(statusResult, null, 2));
-            } catch (statusError) {
-                console.warn('Could not check video status (this is optional):', statusError);
-            }
 
         } catch (error) {
             console.error('=== Facebook Stories Upload Failed ===');
