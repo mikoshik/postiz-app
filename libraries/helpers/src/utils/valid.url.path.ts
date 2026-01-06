@@ -7,12 +7,15 @@ import {
 @ValidatorConstraint({ name: 'checkValidExtension', async: false })
 export class ValidUrlExtension implements ValidatorConstraintInterface {
   validate(text: string, args: ValidationArguments) {
+    // Приводим базовую часть URL к нижнему регистру и убираем query-параметры
+    const base = text?.split?.('?')?.[0]?.toLowerCase() ?? '';
+
     return (
-      !!text?.split?.('?')?.[0].endsWith('.png') ||
-      !!text?.split?.('?')?.[0].endsWith('.jpg') ||
-      !!text?.split?.('?')?.[0].endsWith('.jpeg') ||
-      !!text?.split?.('?')?.[0].endsWith('.gif') ||
-      !!text?.split?.('?')?.[0].endsWith('.mp4')
+      base.endsWith('.png') ||
+      base.endsWith('.jpg') ||
+      base.endsWith('.jpeg') ||
+      base.endsWith('.gif') ||
+      base.endsWith('.mp4')
     );
   }
 
