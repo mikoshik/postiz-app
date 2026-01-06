@@ -58,6 +58,13 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
       };
     }
 
+    if (body.indexOf('FileUrlProcessingError') > -1 || body.indexOf('403 Restricted by robots.txt') > -1) {
+      return {
+        type: 'bad-body' as const,
+        value: 'Unable to access media file. Please check your media URL is publicly accessible and not blocked by robots.txt',
+      };
+    }
+
     if (body.indexOf('1366046') > -1) {
       return {
         type: 'bad-body' as const,
@@ -290,18 +297,57 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
+  /**
+   * Downloads video file from URL and returns as Buffer
+   * Used when Facebook can't access the URL directly (e.g., blocked by robots.txt)
+   */
+  private async downloadVideoFile(videoUrl: string): Promise<Buffer> {
+    try {
+      console.log('Downloading video from URL:', videoUrl);
+      
+      const response = await fetch(videoUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download video: ${response.status} ${response.statusText}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
+      console.log('Video downloaded successfully:', {
+        sizeBytes: buffer.length,
+        sizeMB: (buffer.length / 1024 / 1024).toFixed(2)
+      });
+      
+      return buffer;
+    } catch (error) {
+      console.error('Failed to download video file:', error);
+      throw error;
+    }
+  }
+
   async post(
     id: string,
     accessToken: string,
     postDetails: PostDetails<FacebookDto>[]
 ): Promise<PostResponse[]> {
+    console.log('=== Facebook Post Start ===');
+    console.log('Page ID:', id);
+    console.log('Post Details Count:', postDetails.length);
+    
     const [firstPost, ...comments] = postDetails;
 
     let finalId = '';
     let finalUrl = '';
     
-    // Проверяем, является ли файл видео (более надежная проверка)
     const isVideo = firstPost?.media?.[0]?.path?.includes('mp4');
+    
+    console.log('Media Info:', {
+      hasMedia: !!firstPost?.media?.length,
+      mediaCount: firstPost?.media?.length || 0,
+      isVideo,
+      mediaPath: firstPost?.media?.[0]?.path,
+    });
 
     if (isVideo) {
         // === ЛОГИКА ДЛЯ ВИДЕО ИСТОРИЙ (STORIES) ===
@@ -309,68 +355,200 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
             const pageId = id;
             const videoUrl = firstPost?.media?.[0]?.path!;
 
+            console.log('=== Step 1: Starting Facebook Stories Upload ===');
+            console.log('Page ID:', pageId);
+            console.log('Video URL:', videoUrl);
+
             // --- ШАГ 1: Инициализация (Start) ---
-            // Запрашиваем у FB разрешение на загрузку и получаем upload_url
+            const startUrl = `https://graph.facebook.com/v20.0/${pageId}/video_stories?upload_phase=start&access_token=${accessToken}`;
+            
             const startResponse = await this.fetch(
-                `https://graph.facebook.com/v20.0/${pageId}/video_stories?upload_phase=start&access_token=${accessToken}`,
+                startUrl,
                 { method: 'POST' },
                 'start story upload'
             );
-            const { upload_url, video_id } = await startResponse.json();
+            const startResult = await startResponse.json();
+            
+            console.log('=== Step 1 Response ===');
+            console.log('Status:', startResponse.status);
+            console.log('Response:', JSON.stringify(startResult, null, 2));
+            
+            const { upload_url, video_id } = startResult;
+            
+            if (!upload_url || !video_id) {
+                console.error('Missing upload_url or video_id in response!');
+                throw new Error(`Invalid start response: ${JSON.stringify(startResult)}`);
+            }
+            
+            console.log('Upload URL received:', upload_url);
+            console.log('Video ID received:', video_id);
 
-            // --- ШАГ 2: Передача ссылки (Upload via Hosted File) ---
-            // Отправляем ссылку в заголовке. FB скачает файл сам.
-            // Используем нативный fetch, так как URL (rupload) отличается от graph api
-            const uploadResponse = await fetch(upload_url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `OAuth ${accessToken}`,
-                    'file_url': videoUrl // Передаем ссылку здесь!
-                },
-                // Тело пустое, так как файл качает сам Фейсбук
-            });
+            // --- ШАГ 2: Попытка загрузки через file_url, если не получится — binary upload ---
+            console.log('=== Step 2: Uploading Video ===');
+            
+            let uploadResult: any;
+            let uploadSuccess = false;
 
-            const uploadResult = await uploadResponse.json();
+            // Сначала пробуем метод file_url (быстрый)
+            try {
+                console.log('Trying file_url method with URL:', videoUrl);
+                
+                const uploadResponse = await fetch(upload_url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `OAuth ${accessToken}`,
+                        'file_url': videoUrl
+                    },
+                });
 
-            // Если FB не вернул success или id, значит что-то пошло не так
-            if (!uploadResult.success && !uploadResult.id) {
-                // Если вдруг метод hosted file не сработал, тут можно добавить фоллбэк на загрузку бинарником
-                throw new Error(`Facebook upload failed: ${JSON.stringify(uploadResult)}`);
+                console.log('Upload response status:', uploadResponse.status, uploadResponse.statusText);
+                
+                const uploadResultText = await uploadResponse.text();
+                
+                try {
+                    uploadResult = JSON.parse(uploadResultText);
+                    console.log('Upload result:', JSON.stringify(uploadResult, null, 2));
+                } catch (e) {
+                    console.error('Failed to parse upload response as JSON:', uploadResultText);
+                    throw new Error(`Invalid JSON response: ${uploadResultText}`);
+                }
+
+                // Проверяем успешность
+                if (uploadResult.success || uploadResult.id) {
+                    uploadSuccess = true;
+                    console.log('✅ Video uploaded successfully via file_url method');
+                } else if (uploadResult.debug_info?.type === 'FileUrlProcessingError') {
+                    // robots.txt блокирует — пробуем binary upload
+                    console.warn('⚠️ file_url method blocked by robots.txt:', uploadResult.debug_info?.message);
+                    console.log('🔄 Switching to binary upload method...');
+                } else {
+                    throw new Error(`Unexpected upload response: ${JSON.stringify(uploadResult)}`);
+                }
+            } catch (error) {
+                console.warn('file_url method failed:', error instanceof Error ? error.message : String(error));
+                console.log('🔄 Will try binary upload method...');
+            }
+
+            // Если file_url не сработал, пробуем binary upload
+            if (!uploadSuccess) {
+                console.log('=== Step 2b: Binary Upload Fallback ===');
+                
+                // Скачиваем видео
+                const videoBuffer = await this.downloadVideoFile(videoUrl);
+                
+                // Загружаем бинарные данные с правильными заголовками для resumable upload
+                console.log('Uploading binary data to Facebook');
+                console.log('Buffer size:', videoBuffer.length, 'bytes');
+                console.log('Buffer size MB:', (videoBuffer.length / 1024 / 1024).toFixed(2), 'MB');
+                
+                const binaryUploadResponse = await fetch(upload_url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `OAuth ${accessToken}`,
+                        'offset': '0', // Начальная позиция для resumable upload
+                        'file_size': videoBuffer.length.toString(), // Общий размер файла
+                    },
+                    body: videoBuffer,
+                });
+
+                console.log('Binary upload response status:', binaryUploadResponse.status, binaryUploadResponse.statusText);
+                console.log('Response headers:', Object.fromEntries(binaryUploadResponse.headers.entries()));
+
+                if (!binaryUploadResponse.ok) {
+                    const errorText = await binaryUploadResponse.text();
+                    console.error('Binary upload failed:', errorText);
+                    throw new Error(`Binary upload failed: ${errorText}`);
+                }
+
+                const binaryUploadResultText = await binaryUploadResponse.text();
+                console.log('Binary upload response body:', binaryUploadResultText);
+                
+                try {
+                    uploadResult = JSON.parse(binaryUploadResultText);
+                    console.log('Binary upload result:', JSON.stringify(uploadResult, null, 2));
+                } catch (e) {
+                    console.error('Failed to parse binary upload response:', binaryUploadResultText);
+                    throw new Error(`Invalid JSON response: ${binaryUploadResultText}`);
+                }
+
+                if (!uploadResult.success && !uploadResult.id) {
+                    throw new Error(`Binary upload failed: ${JSON.stringify(uploadResult)}`);
+                }
+
+                console.log('✅ Video uploaded successfully via binary method');
             }
 
             // --- ШАГ 3: Публикация (Finish) ---
-            // Подтверждаем, что файл передан, и публикуем историю
-            await this.fetch(
+            console.log('=== Step 3: Finishing Story Upload ===');
+            console.log('Video ID:', video_id);
+            
+            const finishBody = {
+                access_token: accessToken,
+                upload_phase: 'finish',
+                video_id: video_id
+            };
+            
+            const finishResponse = await this.fetch(
                 `https://graph.facebook.com/v20.0/${pageId}/video_stories`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        access_token: accessToken,
-                        upload_phase: 'finish',
-                        video_id: video_id
-                    }),
+                    body: JSON.stringify(finishBody),
                 },
                 'finish story upload'
             );
+            
+            const finishResult = await finishResponse.json();
+            console.log('=== Step 3 Response ===');
+            console.log('Status:', finishResponse.status);
+            console.log('Response:', JSON.stringify(finishResult, null, 2));
 
-            // Успех
-            finalId = video_id;
-            // У историй нет постоянной ссылки (они исчезают), но можно сформировать примерную
-            finalUrl = `https://www.facebook.com/${pageId}/stories/${video_id}`;
+            // Если Facebook вернул post_id, используем его
+            const actualPostId = finishResult.post_id || video_id;
+
+            finalId = actualPostId;
+            finalUrl = `https://www.facebook.com/${pageId}/stories/${actualPostId}`;
+            
+            console.log('=== Story Upload Complete ===');
+            console.log('Final Video ID:', video_id);
+            console.log('Final Post ID:', actualPostId);
+            console.log('Final URL:', finalUrl);
+            console.log('⏳ Note: Video is processing by Facebook. Story will appear in 1-5 minutes.');
+
+            // Опционально: проверяем статус обработки
+            try {
+                console.log('=== Checking Video Processing Status ===');
+                const statusResponse = await this.fetch(
+                    `https://graph.facebook.com/v20.0/${video_id}?fields=status&access_token=${accessToken}`,
+                    { method: 'GET' },
+                    'check video status'
+                );
+                const statusResult = await statusResponse.json();
+                console.log('Video processing status:', JSON.stringify(statusResult, null, 2));
+            } catch (statusError) {
+                console.warn('Could not check video status (this is optional):', statusError);
+            }
 
         } catch (error) {
-            console.error('Failed to upload video to Facebook stories:', error);
-            throw error; // Пробрасываем ошибку, чтобы Postiz знал о сбое
+            console.error('=== Facebook Stories Upload Failed ===');
+            console.error('Error:', error);
+            if (error instanceof Error) {
+                console.error('Error Message:', error.message);
+                console.error('Error Stack:', error.stack);
+            }
+            throw error;
         }
 
     } else {
         // === ЛОГИКА ДЛЯ ФОТО (FEED) ===
-        // Оставляем старую логику для картинок, она выглядит рабочей для ленты
+        console.log('=== Processing Photo Post ===');
+        
         const uploadPhotos = !firstPost?.media?.length
             ? []
             : await Promise.all(
-                firstPost.media.map(async (media) => {
+                firstPost.media.map(async (media, index) => {
+                    console.log(`Uploading photo ${index + 1}/${firstPost.media.length}:`, media.path);
+                    
                     const { id: photoId } = await (
                         await this.fetch(
                             `https://graph.facebook.com/v20.0/${id}/photos?access_token=${accessToken}`,
@@ -379,17 +557,20 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     url: media.path,
-                                    published: false, // Грузим, но не публикуем сразу
+                                    published: false,
                                 }),
                             },
                             'upload images slides'
                         )
                     ).json();
+                    
+                    console.log(`Photo ${index + 1} uploaded with ID:`, photoId);
                     return { media_fbid: photoId };
                 })
             );
 
-        // Публикуем пост с прикрепленными фото
+        console.log('Publishing feed post with', uploadPhotos.length, 'photos');
+        
         const { id: postId, permalink_url } = await (
             await this.fetch(
                 `https://graph.facebook.com/v20.0/${id}/feed?access_token=${accessToken}&fields=id,permalink_url`,
@@ -409,17 +590,22 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
 
         finalUrl = permalink_url;
         finalId = postId;
+        
+        console.log('Feed post published:', { postId, permalink_url });
     }
 
     // === ОБРАБОТКА КОММЕНТАРИЕВ ===
     const postsArray = [];
-    let commentId = finalId; // Комментируем созданный пост или историю (если API позволяет)
+    let commentId = finalId;
     
-    // Внимание: API Фейсбука может не позволять комментировать Истории через API.
-    // Этот блок сработает корректно для постов в ленте.
     if (comments.length > 0 && finalId) {
-        for (const comment of comments) {
+        console.log('=== Processing Comments ===');
+        console.log('Comments count:', comments.length);
+        
+        for (const [index, comment] of comments.entries()) {
             try {
+                console.log(`Adding comment ${index + 1}/${comments.length}`);
+                
                 const data = await (
                     await this.fetch(
                         `https://graph.facebook.com/v20.0/${commentId}/comments?access_token=${accessToken}&fields=id,permalink_url`,
@@ -436,6 +622,8 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
                 ).json();
 
                 commentId = data.id;
+                console.log(`Comment ${index + 1} added with ID:`, data.id);
+                
                 postsArray.push({
                     id: comment.id,
                     postId: data.id,
@@ -443,11 +631,13 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
                     status: 'success',
                 });
             } catch (e) {
-                console.error('Error posting comment:', e);
-                // Не прерываем весь процесс из-за ошибки комментария
+                console.error(`Error posting comment ${index + 1}:`, e);
             }
         }
     }
+
+    console.log('=== Facebook Post Complete ===');
+    console.log('Total posts created:', 1 + postsArray.length);
 
     return [
         {
